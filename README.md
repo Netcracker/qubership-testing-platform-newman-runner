@@ -1,0 +1,1 @@
+# qubership-testing-platform-newman-runner
