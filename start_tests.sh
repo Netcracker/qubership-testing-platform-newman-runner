@@ -34,6 +34,8 @@ TEST_PARAMS="$(convert_line_to_test_params "$TEST_PARAMS")" || exit 1
 ## Check and extract input test parameters for Newman
 extract_newman_collections_list "$TEST_PARAMS" "NEWMAN_COLLECTIONS_ARRAY"
 extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
+COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
+COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
 
 # ============================================
 # Launching Newman collections
@@ -52,8 +54,20 @@ if ! local_run_enabled; then
   --reporter-htmlextra-export ${TMP_DIR}/attachments/htmlextra.html"
 
   NEWMAN_FAILED=0
+  idx=0
   for collection in "${NEWMAN_COLLECTIONS_ARRAY[@]}"; do
-      nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${NEWMAN_REPORTING}"
+          idx=$((idx + 1))
+
+          if [[ "$COMMON_ENV" == "true" ]]; then
+              if (( idx == 1 )); then
+                  env_flags="--environment ${COMMON_ENV_FILE} --export-environment env_2.json"
+              else
+                  env_flags="--environment env_${idx}.json --export-environment env_$((idx+1)).json"
+              fi
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${env_flags} ${NEWMAN_REPORTING}"
+          else
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${NEWMAN_REPORTING}"
+          fi
       echo "Running command: '${nr_command}'"
 
       # Disable set -e for one command
