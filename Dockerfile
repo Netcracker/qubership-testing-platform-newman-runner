@@ -40,6 +40,7 @@ ENV PATH="/app/node_modules/.bin:${PATH}"
 ENV NODE_PATH="/app/node_modules"
 
 COPY --chown=runner:runner --chmod=755 scripts/ /scripts/
+COPY --chown=runner:runner --chmod=755 tools/ /tools/
 COPY --chown=runner:runner --chmod=755 scripts/runtimes/newman-setup.sh /scripts/runtime-setup.sh
 COPY --chown=runner:runner --chmod=755 start_tests.sh /start_tests.sh
 COPY --chown=runner:runner --chmod=755 entrypoint.sh /app/entrypoint.sh
