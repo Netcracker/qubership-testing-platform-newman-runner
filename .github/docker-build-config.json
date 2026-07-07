@@ -1,0 +1,15 @@
+{
+  "components": [
+    {
+      "name": "qubership-testing-platform-newman-runner",
+      "file": "./Dockerfile",
+      "context": "."
+    },
+    {
+      "name": "qubership-testing-platform-newman-runner-transfer",
+      "file": "docker-transfer/Dockerfile",
+      "context": "."
+    }
+  ],
+  "platforms": "linux/amd64"
+}

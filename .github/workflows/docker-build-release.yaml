@@ -1,0 +1,136 @@
+name: Build and Publish Release Docker Image
+run-name: "Dev build repository: ${{ github.ref_name }} #${{ github.run_number }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type to release'
+        type: choice
+        options:
+          - 'major'
+          - 'minor'
+          - 'patch'
+        required: true
+        default: 'patch'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  load-docker-build-components:
+    runs-on: ubuntu-latest
+    outputs:
+      component: ${{ steps.load_component.outputs.components }}
+      platforms: ${{ steps.load_component.outputs.platforms }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Load Docker Configuration
+        id: load_component
+        run: |
+          verify=$(cat "$GITHUB_WORKSPACE/.github/docker-build-config.json" | jq '
+          def verify_structure:
+          .components as $components
+          | .platforms as $platforms
+          | ($components | type == "array")
+          and (all($components[]; has("name") and has("file") and has("context")))
+          and ($platforms | type == "string");
+          verify_structure
+          | if . then true else false end
+          ')
+          if [ ${verify} == 'true' ]; then
+            echo "✅ $GITHUB_WORKSPACE/.github/docker-build-config.json file is valid"
+            components=$(jq -c ".components" "$GITHUB_WORKSPACE/.github/docker-build-config.json")
+            platforms=$(jq -c ".platforms" "$GITHUB_WORKSPACE/.github/docker-build-config.json")
+          else
+            echo "❗ $GITHUB_WORKSPACE/.github/docker-build-config.json file is invalid"
+            echo "❗ $GITHUB_WORKSPACE/.github/docker-build-config.json file is invalid" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "components=${components}" >> $GITHUB_OUTPUT
+          echo "platforms=${platforms}" >> $GITHUB_OUTPUT
+
+  docker-build:
+    needs: [load-docker-build-components]
+    name: "Build and Publish Docker Image"
+    permissions:
+      packages: write
+      contents: read
+    outputs:
+      metadata: "${{ steps.metadata.outputs.result }}"
+      tags: "${{ steps.prepare_tags.outputs.new_tag }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.load-docker-build-components.outputs.component) }}
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: "Prepare tags"
+        id: prepare_tags
+        env:
+          version_type: ${{ inputs.version_type }}
+        run: |
+          echo "version_type=$version_type"
+          echo "Check current tag"
+          git fetch --tags
+          TAG=$(git tag --list 'v*' --sort=-v:refname | tr -d '\r' | head -n 1)
+          TAG=${TAG#v}
+          echo "Current tag: $TAG"
+
+          if [[ -z "$TAG" ]]; then
+            NEW_TAG="1.0.0"
+          else
+            MAJOR=$(echo "$TAG" | cut -d. -f1)
+            MINOR=$(echo "$TAG" | cut -d. -f2)
+            PATCH=$(echo "$TAG" | cut -d. -f3)
+            if [ "$version_type" == "major" ]; then
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            elif [ "$version_type" == "minor" ]; then
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            else
+              PATCH=$((PATCH + 1))
+            fi
+            NEW_TAG="$MAJOR.$MINOR.$PATCH"
+          fi
+
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "New version will be: $NEW_TAG"
+
+      - name: "Summary step"
+        run: |
+          echo "**Tags:** ${{ steps.prepare_tags.outputs.new_tag }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          submodules: recursive
+
+      - name: Build and Publish Docker Image
+        uses: netcracker/qubership-workflow-hub/actions/docker-action@396774180000abdb825cbf150b56cc59c6913db8 #v2.0.5
+        with:
+          ref: ${{ github.ref }}
+          component: ${{ toJson(matrix.component) }}
+          platforms: ${{ needs.load-docker-build-components.outputs.platforms }}
+          dry-run: false
+          tags: v${{ steps.prepare_tags.outputs.new_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  github-release:
+    needs: [docker-build]
+    if: ${{ needs.docker-build.result == 'success' }}
+    uses: netcracker/qubership-workflow-hub/.github/workflows/release-drafter.yml@396774180000abdb825cbf150b56cc59c6913db8 #v2.0.5
+    with:
+      version: ${{ needs.docker-build.outputs.tags }}
+      publish: true
