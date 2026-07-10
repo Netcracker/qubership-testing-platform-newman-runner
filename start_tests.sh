@@ -34,8 +34,23 @@ TEST_PARAMS="$(convert_line_to_test_params "$TEST_PARAMS")" || exit 1
 ## Check and extract input test parameters for Newman
 extract_newman_collections_list "$TEST_PARAMS" "NEWMAN_COLLECTIONS_ARRAY"
 extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
-COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
-COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
+
+PARAMS_SOURCE=$(echo "$TEST_PARAMS" | jq -r '.params_source // "collections"')
+if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
+  # execution_list format: env file + common chaining come from shell / EXTRA_VARS
+  NEWMAN_ENVIRONMENT_FILE="${NEWMAN_ENVIRONMENT_FILE:-$ENVIRONMENT_NAME}"
+  COMMON_ENV_FILE="$NEWMAN_ENVIRONMENT_FILE"
+  case "${COMMON_ENVIRONMENT:-}" in
+    [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) COMMON_ENV="true" ;;
+    *) COMMON_ENV="false" ;;
+  esac
+  echo "➡️ params_source=execution_list; NEWMAN_ENVIRONMENT_FILE='${COMMON_ENV_FILE}'; COMMON_ENVIRONMENT='${COMMON_ENV}'"
+else
+  # legacy collections format: env + common_environment from TEST_PARAMS JSON
+  COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
+  COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
+  echo "➡️ params_source=collections; env='${COMMON_ENV_FILE}'; common_environment='${COMMON_ENV}'"
+fi
 
 # ============================================
 # Launching Newman collections

@@ -78,8 +78,48 @@ catch (e) {
 
 const toArray = (x) => Array.isArray(x) ? x : (x == null ? [] : [x]);
 
+// --- Resolve collections source: prefer execution_list over legacy collections ---
+const executionList = Array.isArray(src.execution_list) ? src.execution_list : [];
+let params_source = 'collections';
+let rawCollections = [];
+
+if (executionList.length > 0) {
+  params_source = 'execution_list';
+  if (src.collections != null && toArray(src.collections).length > 0) {
+    console.error('Warning: both execution_list and collections are set; preferring execution_list and ignoring collections.');
+  }
+  for (const item of executionList) {
+    if (!item || typeof item !== 'object') {
+      console.error('execution_list item must be an object with type and name.');
+      process.exit(1);
+    }
+    if (item.type !== 'newman') {
+      console.error(`Unsupported execution_list type '${item.type}'. Only 'newman' is allowed.`);
+      process.exit(1);
+    }
+    const name = item.name == null ? '' : String(item.name).trim();
+    if (!name) {
+      console.error('execution_list item name is empty.');
+      process.exit(1);
+    }
+    for (const part of name.split(',')) {
+      const trimmed = part.trim();
+      if (!trimmed) {
+        console.error('execution_list name contains an empty segment after comma-split.');
+        process.exit(1);
+      }
+      rawCollections.push(trimmed);
+    }
+  }
+  if (rawCollections.length === 0) {
+    console.error('execution_list produced no collections.');
+    process.exit(1);
+  }
+} else {
+  rawCollections = toArray(src.collections);
+}
+
 // --- Collections + folder flags ---
-const rawCollections = toArray(src.collections);
 const collections = [];
 const folderFlags = [];
 
@@ -103,14 +143,18 @@ for (const item of rawCollections) {
 
 // --- Flags order ---
 // 1) flags from input (as-is)
-// 2) --environment <file> (if present)
+// 2) --environment <file> (if present; legacy collections format only)
 // 3) --globals <file> (if present)
 // 4) folder flags
 // 5) --env-var K->V for each env_vars entry
 const flags = [];
 flags.push(...toArray(src.flags));
 
-if (src.env && !src.common_environment) flags.push(`--environment ${src.env}`);
+const useJsonEnv = params_source === 'collections';
+const common_environment = useJsonEnv ? !!src.common_environment : false;
+const env = useJsonEnv ? (src.env || '') : '';
+
+if (useJsonEnv && env && !common_environment) flags.push(`--environment ${env}`);
 if (src.globals) flags.push(`--globals ${src.globals}`);
 flags.push(...folderFlags);
 
@@ -119,7 +163,7 @@ for (const [k, v] of Object.entries(envVars)) {
   flags.push(`--env-var ${k}->${v}`);
 }
 
-const out = { collections, flags, common_environment: !!src.common_environment, env: src.env || '' };
+const out = { collections, flags, common_environment, env, params_source };
 process.stdout.write(JSON.stringify(out, null, 2));
 NODE
 }

@@ -62,7 +62,10 @@ flowchart TD
 
 #### Input for Project Argo Pipeline
 
-- __ENVIRONMENT_NAME__ - Environment name
+- __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
+- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Defaults to `ENVIRONMENT_NAME` when unset
+- __EXTRA_VARS__ - Optional. Semicolon/comma-separated `KEY=VALUE` pairs injected into the runner (e.g. `COMMON_ENVIRONMENT=true`)
+- __COMMON_ENVIRONMENT__ - Optional. When using `execution_list`, set via `EXTRA_VARS` (or env). Truthy values: `true`, `1`, `yes` (case-insensitive). Enables env chaining across collections
 - __ATP_TESTS_GIT_REPO_URL__ - Git repository URL
 - __ATP_TESTS_GIT_REPO_BRANCH__ - Branch to clone
 - __ATP_TESTS_GIT_TOKEN__ - Git access token
@@ -79,7 +82,37 @@ flowchart TD
 - __CURRENT_DATE__ - Optional. Format `YYYY-MM-DD`, example: `2025-07-30`
 - __CURRENT_TIME__ - Optional. Format `HH:MM:SS`, example `23:45:12`
 
-#### TEST_PARAMS Example
+#### TEST_PARAMS Example (execution_list — preferred)
+
+Bruno/Playwright-style format. Collection paths are a comma-separated string in `name`. Env file and common-env chaining come from `NEWMAN_ENVIRONMENT_FILE` / `COMMON_ENVIRONMENT`, not from JSON.
+
+```json
+{
+  "execution_list": [
+    {
+      "type": "newman",
+      "name": "project_name/Acquire_Token.postman_collection.json,project_name/Smoke_AgreementManagement.postman_collection.json"
+    }
+  ],
+  "env_vars": {
+    "cluster": ".k8s-dev123.k8s.test.somedomain.com",
+    "namespace": "project-name-ns123"
+  },
+  "flags": ["--insecure"]
+}
+```
+
+With:
+
+```bash
+ENVIRONMENT_NAME=dev
+NEWMAN_ENVIRONMENT_FILE=environment/dev_env.postman_environment.json
+EXTRA_VARS=COMMON_ENVIRONMENT=true
+```
+
+If both `execution_list` and `collections` are present, `execution_list` wins and `collections` is ignored (warning logged).
+
+#### TEST_PARAMS Example (legacy collections)
 
 ```json
 {
@@ -88,6 +121,7 @@ flowchart TD
     "project_name/Smoke_AgreementManagement.postman_collection.json"
   ],
   "env":"environment/dev_env.postman_environment.json",
+  "common_environment": false,
   "env_vars":{
     "core_url":"http://core-project-123.k8s-dev123.k8s.test.somedomain.com",
     "conf-url":"http://configuration-service-project-123.k8s-dev123.k8s.test.somedomain.com",
@@ -108,11 +142,11 @@ flowchart TD
 
 #### TEST_PARAMS description
 
-The flags for launching Newman tools are listed below.
-
-- __collections__ - List of relative paths to files with collections. See flag `newman run {relative path to collection}`
-- __flags__ - Set of flag for execution. See flags `--insecure --export-environment env1.yaml`
-
+- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection paths
+- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`)
+- __flags__ - Newman CLI flags (both formats), e.g. `--insecure`
+- __env_vars__ / __globals__ - Top-level for both formats; converted to `--env-var` / `--globals`
+- __env__ / __common_environment__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_ENVIRONMENT_FILE` and `COMMON_ENVIRONMENT` instead
 ## Reporting
 
 During the collection run, reports are generated in four formats: CLI, JSON, HTML, and Allure.
