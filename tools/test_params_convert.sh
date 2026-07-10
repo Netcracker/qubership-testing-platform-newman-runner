@@ -88,9 +88,13 @@ for (const item of rawCollections) {
     const m = item.match(/^(.*?\.json):(.*)$/i);
     if (m) {
       const path = m[1].trim();
-      const folder = (m[2] || '').trim();
-      if (path) collections.push(path);
-      if (folder) folderFlags.push(`--folder ${folder}`);
+      const afterColon = (m[2] || '').trim();
+      const atIdx = afterColon.indexOf('@');
+      const folder   = atIdx >= 0 ? afterColon.slice(0, atIdx).trim() : afterColon;
+      const datafile = atIdx >= 0 ? afterColon.slice(atIdx + 1).trim() : '';
+      if (path)     collections.push(path);
+      if (folder)   folderFlags.push(`--folder ${folder}`);
+      if (datafile) folderFlags.push(`--iteration-data ${datafile}`);
       continue;
     }
   }
@@ -106,7 +110,7 @@ for (const item of rawCollections) {
 const flags = [];
 flags.push(...toArray(src.flags));
 
-if (src.env) flags.push(`--environment ${src.env}`);
+if (src.env && !src.common_environment) flags.push(`--environment ${src.env}`);
 if (src.globals) flags.push(`--globals ${src.globals}`);
 flags.push(...folderFlags);
 
@@ -115,7 +119,7 @@ for (const [k, v] of Object.entries(envVars)) {
   flags.push(`--env-var ${k}->${v}`);
 }
 
-const out = { collections, flags };
+const out = { collections, flags, common_environment: !!src.common_environment, env: src.env || '' };
 process.stdout.write(JSON.stringify(out, null, 2));
 NODE
 }

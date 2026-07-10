@@ -1,0 +1,105 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches-ignore:
+      - "**release*"
+      - "prettier/**"
+      - "dependabot/**"
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - ".github/**"
+  workflow_dispatch: {}
+  pull_request:
+    branches: [main]
+    types:
+      [opened, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  load-docker-build-components:
+    runs-on: ubuntu-latest
+    outputs:
+      component: ${{ steps.load_component.outputs.components }}
+      platforms: ${{ steps.load_component.outputs.platforms }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Load Docker Configuration
+        id: load_component
+        run: |
+          verify=$(cat "$GITHUB_WORKSPACE/.github/docker-build-config.json" | jq '
+          def verify_structure:
+          .components as $components
+          | .platforms as $platforms
+          | ($components | type == "array")
+          and (all($components[]; has("name") and has("file") and has("context")))
+          and ($platforms | type == "string");
+          verify_structure
+          | if . then true else false end
+          ')
+          if [ ${verify} == 'true' ]; then
+            echo "✅ $GITHUB_WORKSPACE/.github/docker-build-config.json file is valid"
+            components=$(jq -c ".components" "$GITHUB_WORKSPACE/.github/docker-build-config.json")
+            platforms=$(jq -c ".platforms" "$GITHUB_WORKSPACE/.github/docker-build-config.json")
+          else
+            echo "❗ $GITHUB_WORKSPACE/.github/docker-build-config.json file is invalid"
+            echo "❗ $GITHUB_WORKSPACE/.github/docker-build-config.json file is invalid" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "components=${components}" >> $GITHUB_OUTPUT
+          echo "platforms=${platforms}" >> $GITHUB_OUTPUT
+
+  build-and-push:
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJson(needs.load-docker-build-components.outputs.component) }}
+    needs: [ load-docker-build-components ]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Replace slash in service branch
+        id: replace_slash
+        run: |
+          service_branch="$GITHUB_REF_NAME"
+
+          if [[ "$service_branch" == *"/"* ]]; then
+            service_branch="${service_branch//\//_}"
+          fi
+          echo "Branch is: $service_branch"
+          echo "SERVICE_BRANCH=$service_branch" >> $GITHUB_ENV
+
+      - name: Metadata
+        id: metadata
+        uses: netcracker/qubership-workflow-hub/actions/metadata-action@396774180000abdb825cbf150b56cc59c6913db8 #v2.0.5
+        with:
+          default-template: '{{ref-name}}-{{timestamp}}'
+
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          submodules: recursive
+
+      - name: Build and Publish Docker Image
+        uses: netcracker/qubership-workflow-hub/actions/docker-action@396774180000abdb825cbf150b56cc59c6913db8 #v2.0.5
+        with:
+          ref: ${{ github.ref }}
+          tags: ${{steps.metadata.outputs.result}}, ${{ env.SERVICE_BRANCH }}_latest
+          component: ${{ toJson(matrix.component) }}
+          platforms: ${{ needs.load-docker-build-components.outputs.platforms }}
+          dry-run: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
