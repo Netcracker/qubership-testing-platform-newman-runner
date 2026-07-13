@@ -37,16 +37,20 @@ extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
 
 PARAMS_SOURCE=$(echo "$TEST_PARAMS" | jq -r '.params_source // "collections"')
 if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
-  # execution_list format: env file + common chaining come from shell / EXTRA_VARS
+  # execution_list format: env file, common chaining, and CLI flags come from shell / EXTRA_VARS
   NEWMAN_ENVIRONMENT_FILE="${NEWMAN_ENVIRONMENT_FILE:-$ENVIRONMENT_NAME}"
   COMMON_ENV_FILE="$NEWMAN_ENVIRONMENT_FILE"
   case "${COMMON_ENVIRONMENT:-}" in
     [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) COMMON_ENV="true" ;;
     *) COMMON_ENV="false" ;;
   esac
-  echo "➡️ params_source=execution_list; NEWMAN_ENVIRONMENT_FILE='${COMMON_ENV_FILE}'; COMMON_ENVIRONMENT='${COMMON_ENV}'"
+  # NEWMAN_FLAGS (EXTRA_VARS) are user CLI flags; NEWMAN_FLAGS_CLI may still hold derived flags (globals/folder/env_vars)
+  if [[ -n "${NEWMAN_FLAGS:-}" ]]; then
+    NEWMAN_FLAGS_CLI="${NEWMAN_FLAGS}${NEWMAN_FLAGS_CLI:+ ${NEWMAN_FLAGS_CLI}}"
+  fi
+  echo "➡️ params_source=execution_list; NEWMAN_ENVIRONMENT_FILE='${COMMON_ENV_FILE}'; COMMON_ENVIRONMENT='${COMMON_ENV}'; NEWMAN_FLAGS='${NEWMAN_FLAGS:-}'"
 else
-  # legacy collections format: env + common_environment from TEST_PARAMS JSON
+  # legacy collections format: env + common_environment + flags from TEST_PARAMS JSON
   COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
   COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
   echo "➡️ params_source=collections; env='${COMMON_ENV_FILE}'; common_environment='${COMMON_ENV}'"

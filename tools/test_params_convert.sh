@@ -142,17 +142,22 @@ for (const item of rawCollections) {
 }
 
 // --- Flags order ---
-// 1) flags from input (as-is)
+// 1) flags from input (legacy collections format only; execution_list uses NEWMAN_FLAGS via EXTRA_VARS)
 // 2) --environment <file> (if present; legacy collections format only)
 // 3) --globals <file> (if present)
 // 4) folder flags
 // 5) --env-var K->V for each env_vars entry
 const flags = [];
-flags.push(...toArray(src.flags));
 
 const useJsonEnv = params_source === 'collections';
 const common_environment = useJsonEnv ? !!src.common_environment : false;
 const env = useJsonEnv ? (src.env || '') : '';
+
+if (useJsonEnv) {
+  flags.push(...toArray(src.flags));
+} else if (toArray(src.flags).length > 0) {
+  console.error('Warning: flags in TEST_PARAMS are ignored for execution_list; pass NEWMAN_FLAGS via EXTRA_VARS instead.');
+}
 
 if (useJsonEnv && env && !common_environment) flags.push(`--environment ${env}`);
 if (src.globals) flags.push(`--globals ${src.globals}`);
