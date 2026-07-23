@@ -145,8 +145,9 @@ for (const item of rawCollections) {
 // 1) flags from input (legacy collections format only; execution_list uses NEWMAN_FLAGS via EXTRA_VARS)
 // 2) --environment <file> (if present; legacy collections format only)
 // 3) --globals <file> (if present)
-// 4) folder flags
-// 5) --env-var K->V for each env_vars entry
+// 4) --working-dir <path> (if present)
+// 5) folder flags
+// 6) --env-var K->V for each env_vars entry
 const flags = [];
 
 const useJsonEnv = params_source === 'collections';
@@ -161,6 +162,7 @@ if (useJsonEnv) {
 
 if (useJsonEnv && env && !common_environment) flags.push(`--environment ${env}`);
 if (src.globals) flags.push(`--globals ${src.globals}`);
+if (src.working_dir) flags.push(`--working-dir ${src.working_dir}`);
 flags.push(...folderFlags);
 
 const envVars = src.env_vars || {};
