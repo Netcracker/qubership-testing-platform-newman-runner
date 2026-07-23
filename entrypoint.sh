@@ -45,6 +45,8 @@ source /scripts/email-notification/generate-email-notification-json.sh
 source /scripts/render-environment-configuration.sh
 # shellcheck disable=SC1091
 source /scripts/parse-extra-vars.sh
+# shellcheck disable=SC1091
+source /maven-install.sh
 
 # Execute main workflow
 echo "🚀 Starting test execution workflow..."
@@ -61,6 +63,7 @@ trap 'finalize_once' EXIT
 init_environment              || fail "Environment initialization failed"
 parse_extra_vars              || fail "EXTRA_VARS parsing failed"
 clone_repository              || fail "Repository clone failed"
+maven_install           || fail "Maven install failed"
 render_environment_configuration || fail "Render Environment Configuration Failed"
 setup_runtime_environment     || fail "Runtime setup failed"
 start_upload_monitoring

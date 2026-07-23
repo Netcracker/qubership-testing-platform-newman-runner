@@ -14,7 +14,9 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/" >/etc/apk/repo
       file \
       inotify-tools \
       perl \
-      nano && \
+      nano \
+      openjdk17-jdk \
+      maven && \
     rm -rf /var/cache/apk/*
 
 RUN curl -L -o /tmp/s5cmd.tar.gz \
@@ -43,6 +45,7 @@ COPY --chown=runner:runner --chmod=755 scripts/ /scripts/
 COPY --chown=runner:runner --chmod=755 tools/ /tools/
 COPY --chown=runner:runner --chmod=755 scripts/runtimes/newman-setup.sh /scripts/runtime-setup.sh
 COPY --chown=runner:runner --chmod=755 start_tests.sh /start_tests.sh
+COPY --chown=runner:runner --chmod=755 maven-install.sh /maven-install.sh
 COPY --chown=runner:runner --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 USER 1007
