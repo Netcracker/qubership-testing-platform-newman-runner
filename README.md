@@ -67,6 +67,7 @@ flowchart TD
 - __EXTRA_VARS__ - Optional. Semicolon/comma-separated `KEY=VALUE` pairs injected into the runner (e.g. `COMMON_ENVIRONMENT=true;NEWMAN_FLAGS=--insecure`). Prefer `;` between pairs when values contain spaces
 - __COMMON_ENVIRONMENT__ - Optional. When using `execution_list`, set via `EXTRA_VARS` (or env). Truthy values: `true`, `1`, `yes` (case-insensitive). Enables env chaining across collections
 - __NEWMAN_FLAGS__ - Optional. When using `execution_list`, Newman CLI flags via `EXTRA_VARS` (or env), e.g. `--insecure --delay-request 100`. JSON `flags` are ignored for this format
+- __MAVEN_BUILD__ - Optional. When `true` / `1` / `yes` (case-insensitive) via `EXTRA_VARS` (or env), runs `mvn install -Dmaven.wagon.http.ssl.insecure=true -s ./settings.xml` in the cloned collections repo before tests. Requires `settings.xml` at the clone root. Preferred over legacy `TEST_PARAMS.maven_build`; if both are set, env wins and a warning is logged
 - __ATP_TESTS_GIT_REPO_URL__ - Git repository URL
 - __ATP_TESTS_GIT_REPO_BRANCH__ - Branch to clone
 - __ATP_TESTS_GIT_TOKEN__ - Git access token
@@ -133,6 +134,7 @@ If both `execution_list` and `collections` are present, `execution_list` wins an
     "public-gw":"http://public-gateway-project-123.k8s-dev123.k8s.test.somedomain.com",
     "tenant_name":"some_tenant"
   },
+  "maven_build": true,
   "flags": [
     "--insecure",
     "--export-environment env1.yaml"
@@ -147,6 +149,7 @@ If both `execution_list` and `collections` are present, `execution_list` wins an
 - __flags__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_FLAGS` via `EXTRA_VARS`
 - __env_vars__ / __globals__ - Top-level for both formats; converted to `--env-var` / `--globals`
 - __env__ / __common_environment__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_ENVIRONMENT_FILE` and `COMMON_ENVIRONMENT` instead
+- __maven_build__ - Legacy. Boolean; when `true`, runs Maven install after clone (same as `MAVEN_BUILD`). Prefer `MAVEN_BUILD` via `EXTRA_VARS`. Requires `settings.xml` at the clone root; missing file or `mvn` failure fails the job
 ## Reporting
 
 During the collection run, reports are generated in four formats: CLI, JSON, HTML, and Allure.
