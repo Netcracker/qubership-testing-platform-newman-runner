@@ -6,7 +6,7 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/" >/etc/apk/repo
     echo "https://dl-cdn.alpinelinux.org/alpine/v3.22/main/" >>/etc/apk/repositories && \
     apk update && apk add --no-cache ca-certificates \
       bash=5.2.37-r0 \
-      curl=8.14.1-r2 \
+      curl=8.14.1-r3 \
       jq=1.8.1-r0 \
       tar=1.35-r3 \
       unzip \
@@ -14,7 +14,9 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/" >/etc/apk/repo
       file \
       inotify-tools \
       perl \
-      nano && \
+      nano \
+      openjdk17-jdk \
+      maven && \
     rm -rf /var/cache/apk/*
 
 RUN curl -L -o /tmp/s5cmd.tar.gz \
@@ -43,6 +45,7 @@ COPY --chown=runner:runner --chmod=755 scripts/ /scripts/
 COPY --chown=runner:runner --chmod=755 tools/ /tools/
 COPY --chown=runner:runner --chmod=755 scripts/runtimes/newman-setup.sh /scripts/runtime-setup.sh
 COPY --chown=runner:runner --chmod=755 start_tests.sh /start_tests.sh
+COPY --chown=runner:runner --chmod=755 maven-install.sh /maven-install.sh
 COPY --chown=runner:runner --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 USER 1007

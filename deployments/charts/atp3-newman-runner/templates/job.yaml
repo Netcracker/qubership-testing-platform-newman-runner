@@ -37,6 +37,8 @@ spec:
             value: "{{ .Values.ATP_REPORT_VIEW_UI_URL }}"
           - name: ATP_RUNNER_JOB_EXIT_STRATEGY
             value: "{{ .Values.ATP_RUNNER_JOB_EXIT_STRATEGY }}"
+          - name: EXTRA_VARS
+            value: "{{ .Values.EXTRA_VARS }}"
           - name: CURRENT_DATE
             value: "{{ .Values.CURRENT_DATE }}"
           - name: CURRENT_TIME

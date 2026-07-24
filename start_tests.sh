@@ -34,8 +34,32 @@ TEST_PARAMS="$(convert_line_to_test_params "$TEST_PARAMS")" || exit 1
 ## Check and extract input test parameters for Newman
 extract_newman_collections_list "$TEST_PARAMS" "NEWMAN_COLLECTIONS_ARRAY"
 extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
-COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
-COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
+
+PARAMS_SOURCE=$(echo "$TEST_PARAMS" | jq -r '.params_source // "collections"')
+if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
+  # execution_list format: env file, common chaining, and CLI flags come from shell / EXTRA_VARS
+  NEWMAN_ENVIRONMENT_FILE="${NEWMAN_ENVIRONMENT_FILE:-$ENVIRONMENT_NAME}"
+  COMMON_ENV_FILE="$NEWMAN_ENVIRONMENT_FILE"
+  case "${COMMON_ENVIRONMENT:-}" in
+    [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) COMMON_ENV="true" ;;
+    *) COMMON_ENV="false" ;;
+  esac
+  # NEWMAN_FLAGS (EXTRA_VARS) are user CLI flags; NEWMAN_FLAGS_CLI may still hold derived flags (globals/folder/env_vars/working_dir)
+  # NEWMAN_FLAGS wins over JSON-derived --working-dir (merge prepends NEWMAN_FLAGS; Newman last-wins would otherwise let JSON override)
+  if [[ -n "${NEWMAN_FLAGS:-}" ]]; then
+    if [[ "${NEWMAN_FLAGS}" == *"--working-dir"* ]] && [[ "${NEWMAN_FLAGS_CLI:-}" == *"--working-dir"* ]]; then
+      echo "⚠️ WARNING: NEWMAN_FLAGS contains --working-dir; ignoring TEST_PARAMS.working_dir"
+      NEWMAN_FLAGS_CLI="$(echo "${NEWMAN_FLAGS_CLI}" | sed -E 's/(^|[[:space:]])--working-dir[[:space:]]+[^[:space:]]+//g' | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//;s/[[:space:]]+/ /g')"
+    fi
+    NEWMAN_FLAGS_CLI="${NEWMAN_FLAGS}${NEWMAN_FLAGS_CLI:+ ${NEWMAN_FLAGS_CLI}}"
+  fi
+  echo "➡️ params_source=execution_list; NEWMAN_ENVIRONMENT_FILE='${COMMON_ENV_FILE}'; COMMON_ENVIRONMENT='${COMMON_ENV}'; NEWMAN_FLAGS='${NEWMAN_FLAGS:-}'"
+else
+  # legacy collections format: env + common_environment + flags from TEST_PARAMS JSON
+  COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
+  COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
+  echo "➡️ params_source=collections; env='${COMMON_ENV_FILE}'; common_environment='${COMMON_ENV}'"
+fi
 
 # ============================================
 # Launching Newman collections

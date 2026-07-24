@@ -62,7 +62,12 @@ flowchart TD
 
 #### Input for Project Argo Pipeline
 
-- __ENVIRONMENT_NAME__ - Environment name
+- __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
+- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Defaults to `ENVIRONMENT_NAME` when unset
+- __EXTRA_VARS__ - Optional. Semicolon/comma-separated `KEY=VALUE` pairs injected into the runner (e.g. `COMMON_ENVIRONMENT=true;NEWMAN_FLAGS=--insecure`). Prefer `;` between pairs when values contain spaces
+- __COMMON_ENVIRONMENT__ - Optional. When using `execution_list`, set via `EXTRA_VARS` (or env). Truthy values: `true`, `1`, `yes` (case-insensitive). Enables env chaining across collections
+- __NEWMAN_FLAGS__ - Optional. When using `execution_list`, Newman CLI flags via `EXTRA_VARS` (or env), e.g. `--insecure --delay-request 100` or `--working-dir path/to/files`. JSON `flags` are ignored for this format. When `NEWMAN_FLAGS` contains `--working-dir`, it overrides `TEST_PARAMS.working_dir`
+- __MAVEN_BUILD__ - Optional. When `true` / `1` / `yes` (case-insensitive) via `EXTRA_VARS` (or env), runs `mvn install -Dmaven.wagon.http.ssl.insecure=true -s ./settings.xml` in the cloned collections repo before tests. Requires `settings.xml` at the clone root. Preferred over legacy `TEST_PARAMS.maven_build`; if both are set, env wins and a warning is logged
 - __ATP_TESTS_GIT_REPO_URL__ - Git repository URL
 - __ATP_TESTS_GIT_REPO_BRANCH__ - Branch to clone
 - __ATP_TESTS_GIT_TOKEN__ - Git access token
@@ -79,7 +84,38 @@ flowchart TD
 - __CURRENT_DATE__ - Optional. Format `YYYY-MM-DD`, example: `2025-07-30`
 - __CURRENT_TIME__ - Optional. Format `HH:MM:SS`, example `23:45:12`
 
-#### TEST_PARAMS Example
+#### TEST_PARAMS Example (execution_list — preferred)
+
+Bruno/Playwright-style format. Collection paths are a comma-separated string in `name`. Env file, common-env chaining, and CLI flags come from `NEWMAN_ENVIRONMENT_FILE` / `COMMON_ENVIRONMENT` / `NEWMAN_FLAGS`, not from JSON.
+
+```json
+{
+  "execution_list": [
+    {
+      "type": "newman",
+      "name": "project_name/Acquire_Token.postman_collection.json,project_name/Smoke_AgreementManagement.postman_collection.json"
+    }
+  ],
+  "env_vars": {
+    "cluster": ".k8s-dev123.k8s.test.somedomain.com",
+    "namespace": "project-name-ns123"
+  }
+}
+```
+
+With:
+
+```bash
+ENVIRONMENT_NAME=dev
+NEWMAN_ENVIRONMENT_FILE=environment/dev_env.postman_environment.json
+EXTRA_VARS=COMMON_ENVIRONMENT=true;NEWMAN_FLAGS=--insecure --working-dir project_name/files
+```
+
+GitLab/ATP3 pipelines typically hardcode `TEST_PARAMS` to only `execution_list`, so set working directory via `NEWMAN_FLAGS` (as above), not JSON.
+
+If both `execution_list` and `collections` are present, `execution_list` wins and `collections` is ignored (warning logged).
+
+#### TEST_PARAMS Example (legacy collections)
 
 ```json
 {
@@ -88,6 +124,7 @@ flowchart TD
     "project_name/Smoke_AgreementManagement.postman_collection.json"
   ],
   "env":"environment/dev_env.postman_environment.json",
+  "common_environment": false,
   "env_vars":{
     "core_url":"http://core-project-123.k8s-dev123.k8s.test.somedomain.com",
     "conf-url":"http://configuration-service-project-123.k8s-dev123.k8s.test.somedomain.com",
@@ -99,6 +136,8 @@ flowchart TD
     "public-gw":"http://public-gateway-project-123.k8s-dev123.k8s.test.somedomain.com",
     "tenant_name":"some_tenant"
   },
+  "maven_build": true,
+  "working_dir": "project_name/files",
   "flags": [
     "--insecure",
     "--export-environment env1.yaml"
@@ -108,11 +147,13 @@ flowchart TD
 
 #### TEST_PARAMS description
 
-The flags for launching Newman tools are listed below.
-
-- __collections__ - List of relative paths to files with collections. See flag `newman run {relative path to collection}`
-- __flags__ - Set of flag for execution. See flags `--insecure --export-environment env1.yaml`
-
+- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection paths
+- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`)
+- __flags__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_FLAGS` via `EXTRA_VARS`
+- __env_vars__ / __globals__ - Top-level for both formats; converted to `--env-var` / `--globals`
+- __working_dir__ - Top-level for both formats; converted to `--working-dir`. Used so file uploads in collections resolve relative to a known path. For GitLab/ATP3 (`execution_list` with hardcoded `TEST_PARAMS`), set via `EXTRA_VARS` → `NEWMAN_FLAGS=--working-dir <path>` instead. If both are set, `NEWMAN_FLAGS` wins
+- __env__ / __common_environment__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_ENVIRONMENT_FILE` and `COMMON_ENVIRONMENT` instead
+- __maven_build__ - Legacy. Boolean; when `true`, runs Maven install after clone (same as `MAVEN_BUILD`). Prefer `MAVEN_BUILD` via `EXTRA_VARS`. Requires `settings.xml` at the clone root; missing file or `mvn` failure fails the job
 ## Reporting
 
 During the collection run, reports are generated in four formats: CLI, JSON, HTML, and Allure.
