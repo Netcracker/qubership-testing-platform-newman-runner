@@ -93,10 +93,6 @@ if (executionList.length > 0) {
       console.error('execution_list item must be an object with type and name.');
       process.exit(1);
     }
-    if (item.type !== 'newman') {
-      console.error(`Unsupported execution_list type '${item.type}'. Only 'newman' is allowed.`);
-      process.exit(1);
-    }
     const name = item.name == null ? '' : String(item.name).trim();
     if (!name) {
       console.error('execution_list item name is empty.');
