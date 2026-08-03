@@ -44,11 +44,11 @@ if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
     [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) COMMON_ENV="true" ;;
     *) COMMON_ENV="false" ;;
   esac
-  # NEWMAN_FLAGS (EXTRA_VARS) are user CLI flags; NEWMAN_FLAGS_CLI may still hold derived flags (globals/folder/env_vars/working_dir)
+  # NEWMAN_FLAGS (EXTRA_VARS) are user CLI flags; NEWMAN_FLAGS_CLI may still hold derived flags (globals/folder/env_vars/working-dir)
   # NEWMAN_FLAGS wins over JSON-derived --working-dir (merge prepends NEWMAN_FLAGS; Newman last-wins would otherwise let JSON override)
   if [[ -n "${NEWMAN_FLAGS:-}" ]]; then
     if [[ "${NEWMAN_FLAGS}" == *"--working-dir"* ]] && [[ "${NEWMAN_FLAGS_CLI:-}" == *"--working-dir"* ]]; then
-      echo "⚠️ WARNING: NEWMAN_FLAGS contains --working-dir; ignoring TEST_PARAMS.working_dir"
+      echo "⚠️ WARNING: NEWMAN_FLAGS contains --working-dir; ignoring TEST_PARAMS.working-dir"
       NEWMAN_FLAGS_CLI="$(echo "${NEWMAN_FLAGS_CLI}" | sed -E 's/(^|[[:space:]])--working-dir[[:space:]]+[^[:space:]]+//g' | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//;s/[[:space:]]+/ /g')"
     fi
     NEWMAN_FLAGS_CLI="${NEWMAN_FLAGS}${NEWMAN_FLAGS_CLI:+ ${NEWMAN_FLAGS_CLI}}"

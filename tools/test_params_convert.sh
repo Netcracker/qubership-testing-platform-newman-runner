@@ -159,7 +159,7 @@ if (useJsonEnv) {
 
 if (useJsonEnv && env && !common_environment) flags.push(`--environment ${env}`);
 if (src.globals) flags.push(`--globals ${src.globals}`);
-if (src.working_dir) flags.push(`--working-dir ${src.working_dir}`);
+if (src['working-dir']) flags.push(`--working-dir ${src['working-dir']}`);
 flags.push(...folderFlags);
 
 const envVars = src.env_vars || {};
