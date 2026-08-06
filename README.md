@@ -71,6 +71,7 @@ flowchart TD
 - __ATP_TESTS_GIT_REPO_URL__ - Git repository URL
 - __ATP_TESTS_GIT_REPO_BRANCH__ - Branch to clone
 - __ATP_TESTS_GIT_TOKEN__ - Git access token
+- __ATP_TESTS_GIT_MODULES_IGNORE__ - Optional boolean. Set to `true` to skip Git submodule initialization; set to `false` (the default) to initialize submodules recursively. Files stored in skipped submodules will not be available. Only `true` and `false` are supported
 - __TEST_PARAMS__ - JSON which contains parameters for collections execution. See `TEST_PARAMS example` and `TEST_PARAMS description` section
 
 #### Input for ATP Newman Runner
