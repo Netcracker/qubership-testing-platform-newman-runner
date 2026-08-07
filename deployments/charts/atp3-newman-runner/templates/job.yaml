@@ -23,6 +23,8 @@ spec:
             value: "{{ .Values.ATP_TESTS_GIT_REPO_URL }}"
           - name: ATP_TESTS_GIT_REPO_BRANCH
             value: "{{ .Values.ATP_TESTS_GIT_REPO_BRANCH }}"
+          - name: ATP_TESTS_GIT_MODULES_IGNORE
+            value: "{{ .Values.ATP_TESTS_GIT_MODULES_IGNORE }}"
           - name: ENVIRONMENT_NAME
             value: "{{ .Values.ENVIRONMENT_NAME }}"
           - name: ATP_STORAGE_PROVIDER

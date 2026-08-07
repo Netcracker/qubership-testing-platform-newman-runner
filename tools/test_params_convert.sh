@@ -1,3 +1,4 @@
+#!/bin/bash
 # # Copyright 2024-2025 NetCracker Technology Corporation
 # #
 # # Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,10 +94,6 @@ if (executionList.length > 0) {
       console.error('execution_list item must be an object with type and name.');
       process.exit(1);
     }
-    if (item.type !== 'newman') {
-      console.error(`Unsupported execution_list type '${item.type}'. Only 'newman' is allowed.`);
-      process.exit(1);
-    }
     const name = item.name == null ? '' : String(item.name).trim();
     if (!name) {
       console.error('execution_list item name is empty.');
@@ -162,7 +159,7 @@ if (useJsonEnv) {
 
 if (useJsonEnv && env && !common_environment) flags.push(`--environment ${env}`);
 if (src.globals) flags.push(`--globals ${src.globals}`);
-if (src.working_dir) flags.push(`--working-dir ${src.working_dir}`);
+if (src['working-dir']) flags.push(`--working-dir ${src['working-dir']}`);
 flags.push(...folderFlags);
 
 const envVars = src.env_vars || {};
