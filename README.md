@@ -105,6 +105,18 @@ Bruno/Playwright-style format. Collection paths are a comma-separated string in 
 }
 ```
 
+To run every Postman collection in the cloned repository, set `name` to `all`. The keyword is case-insensitive and must be the only collection value:
+
+```json
+{
+  "execution_list": [
+    { "type": "newman", "name": "all" }
+  ]
+}
+```
+
+It recursively discovers `*.postman_collection.json` files, excluding `.git` and `node_modules`.
+
 With:
 
 ```bash
@@ -147,10 +159,12 @@ If both `execution_list` and `collections` are present, `execution_list` wins an
 }
 ```
 
+The legacy format also supports `"collections": ["all"]` with the same standalone-only rule.
+
 #### TEST_PARAMS description
 
-- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection paths
-- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`)
+- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection paths, or the standalone `all` keyword to discover every Postman collection
+- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`), or `["all"]` to discover every Postman collection
 - __flags__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_FLAGS` via `EXTRA_VARS`
 - __env_vars__ / __globals__ - Top-level for both formats; converted to `--env-var` / `--globals`
 - __working-dir__ - Top-level for both formats; passed through as Newman `--working-dir`. Used so file uploads in collections resolve relative to a known path. For GitLab/ATP3 (`execution_list` with hardcoded `TEST_PARAMS`), set via `EXTRA_VARS` → `NEWMAN_FLAGS=--working-dir <path>` instead. If both are set, `NEWMAN_FLAGS` wins

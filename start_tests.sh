@@ -33,6 +33,7 @@ TEST_PARAMS="$(convert_line_to_test_params "$TEST_PARAMS")" || exit 1
 
 ## Check and extract input test parameters for Newman
 extract_newman_collections_list "$TEST_PARAMS" "NEWMAN_COLLECTIONS_ARRAY"
+resolve_newman_collections "$TMP_DIR" "NEWMAN_COLLECTIONS_ARRAY" || exit 1
 extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
 
 PARAMS_SOURCE=$(echo "$TEST_PARAMS" | jq -r '.params_source // "collections"')
