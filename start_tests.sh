@@ -148,10 +148,11 @@ if local_run_enabled; then
   fi
 fi
 
-# Allure Newman reads Environments from environment.properties in resultsDir
-# (not from process env). Write after Newman so the reporter cannot overwrite it.
+# Allure Newman reads Environments from environment.properties and Executors
+# from executor.json in resultsDir (not from process env). Write after Newman
+# so the reporter cannot overwrite them.
 if ! local_run_enabled; then
-  write_allure_environment_properties "${TMP_DIR}/allure-results"
+  write_allure_report_metadata "${TMP_DIR}/allure-results"
 fi
 
 # If you want to fail the job when any collection failed:

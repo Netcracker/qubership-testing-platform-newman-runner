@@ -200,8 +200,43 @@ write_allure_environment_properties() {
     : > "$props_file"
 
     append_allure_property "$props_file" "ATP_APPLICATION_VERSION" "${ATP_APPLICATION_VERSION:-}"
-    append_allure_property "$props_file" "TRIGGER_AUTHOR" "${TRIGGER_AUTHOR:-}"
     append_allure_property "$props_file" "ORIGINAL_PIPELINE_SOURCE" "${ORIGINAL_PIPELINE_SOURCE:-}"
 
     echo "📝 Wrote Allure environment.properties to ${props_file}"
+}
+
+# Write Allure executor.json for the Executors widget.
+# TRIGGER_AUTHOR is shown as executor name (same as Bruno runner).
+# Parameters:
+#   $1 - allure-results directory
+write_allure_executor_json() {
+    local results_dir="${1:-}"
+    if [[ -z "$results_dir" ]]; then
+        echo "⚠️ Skipping Allure executor.json: results directory is empty" >&2
+        return 0
+    fi
+
+    mkdir -p "$results_dir"
+    local executor_file="${results_dir}/executor.json"
+    local trigger_author
+    trigger_author="$(printf '%s' "${TRIGGER_AUTHOR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    if [[ -z "$trigger_author" ]]; then
+        trigger_author="runner"
+        echo "ℹ️ Allure executor: TRIGGER_AUTHOR is empty, using '${trigger_author}'"
+    fi
+
+    jq -n \
+      --arg name "$trigger_author" \
+      --arg type "atp3-newman-runner" \
+      '{name: $name, type: $type}' > "$executor_file"
+
+    echo "📝 Wrote Allure executor.json (name=${trigger_author}) to ${executor_file}"
+}
+
+# Write Allure Environments + Executors metadata after Newman finishes.
+# Parameters:
+#   $1 - allure-results directory
+write_allure_report_metadata() {
+    write_allure_environment_properties "$1"
+    write_allure_executor_json "$1"
 }
