@@ -130,6 +130,113 @@ extract_flags_to_string() {
     export "$target_var_name"
 }
 
+# Flatten ATP_ENVGENE_CONFIGURATION into Postman environment values and merge
+# into the Newman --environment file.
+# Uses: ATP_ENVGENE_CONFIGURATION, TMP_DIR, COMMON_ENV_FILE (in/out)
+# Sets: ENVGENE_NEWMAN_ENV_APPLIED=true when a file is written
+merge_envgene_newman_environment() {
+    ENVGENE_NEWMAN_ENV_APPLIED=false
+    export ENVGENE_NEWMAN_ENV_APPLIED
+
+    if [[ -z "${ATP_ENVGENE_CONFIGURATION:-}" ]]; then
+        echo "ℹ️ ATP_ENVGENE_CONFIGURATION is empty; skipping Newman environment merge"
+        return 0
+    fi
+
+    if [[ -z "${TMP_DIR:-}" ]]; then
+        echo "❌ ERROR: TMP_DIR is not set; cannot merge Newman environment" >&2
+        return 1
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "❌ ERROR: 'jq' is not available; cannot merge Newman environment" >&2
+        return 1
+    fi
+
+    if ! printf '%s' "$ATP_ENVGENE_CONFIGURATION" | jq empty >/dev/null 2>&1; then
+        echo "❌ ERROR: Invalid JSON in ATP_ENVGENE_CONFIGURATION" >&2
+        return 1
+    fi
+
+    local requested="${COMMON_ENV_FILE:-}"
+    local source_path=""
+    local output_path=""
+    local generated_values=""
+    local resolved=""
+
+    if [[ -n "$requested" ]]; then
+        if [[ "$requested" = /* ]]; then
+            resolved="$requested"
+        else
+            resolved="${TMP_DIR%/}/${requested}"
+        fi
+        if [[ -f "$resolved" ]]; then
+            source_path="$resolved"
+            output_path="${TMP_DIR%/}/atp-generated.postman_environment.json"
+        else
+            output_path="$resolved"
+        fi
+    else
+        output_path="${TMP_DIR%/}/atp-generated.postman_environment.json"
+    fi
+
+    echo "🔄 Flattening ATP_ENVGENE_CONFIGURATION into Newman environment variables..."
+
+    generated_values="$(
+        printf '%s' "$ATP_ENVGENE_CONFIGURATION" | jq -c '
+          [.systems[]? | to_entries[]
+           | .key as $system
+           | ($system | ascii_upcase | gsub("[^A-Z0-9]"; "_")) as $sys
+           | (.value.connections // [])[]
+           | to_entries[]
+           | .key as $conn
+           | .value
+           | to_entries[]
+           | select(.value != null and (.value | tostring) != "")
+           | {
+               key: (
+                 $sys
+                 + "_" + ($conn | ascii_upcase | gsub("[^A-Z0-9]"; "_"))
+                 + "_" + (.key | ascii_upcase | gsub("[^A-Z0-9]"; "_"))
+               ),
+               value: (.value | tostring),
+               enabled: true,
+               type: "default"
+             }
+          ]
+        '
+    )" || return 1
+
+    mkdir -p "$(dirname "$output_path")"
+
+    if [[ -n "$source_path" ]]; then
+        if ! jq empty "$source_path" >/dev/null 2>&1; then
+            echo "❌ ERROR: Invalid JSON in Newman environment file: $source_path" >&2
+            return 1
+        fi
+        jq --argjson generated "$generated_values" '
+          (.values // []) as $old
+          | ($old | map({key: .key, value: .}) | from_entries) as $existing
+          | ($generated | map({key: .key, value: .}) | from_entries) as $envgene
+          | .values = (($existing + $envgene) | to_entries | map(.value))
+          | if .name then . else . + {name: "atp-generated"} end
+        ' "$source_path" > "$output_path" || return 1
+        echo "✅ Merged EnvGene variables into Newman environment (source preserved): $source_path -> $output_path"
+    else
+        jq -n --argjson generated "$generated_values" '{
+          name: "atp-generated",
+          values: $generated,
+          "_postman_variable_scope": "environment"
+        }' > "$output_path" || return 1
+        echo "✅ Created Newman environment from EnvGene variables: $output_path"
+    fi
+
+    COMMON_ENV_FILE="$output_path"
+    NEWMAN_ENVIRONMENT_FILE="$output_path"
+    ENVGENE_NEWMAN_ENV_APPLIED=true
+    export COMMON_ENV_FILE NEWMAN_ENVIRONMENT_FILE ENVGENE_NEWMAN_ENV_APPLIED
+}
+
 # Return:
 #   0 — if LOCAL_RUN=true
 #   1 — if LOCAL_RUN=false or value not set/empty

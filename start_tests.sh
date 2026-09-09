@@ -61,6 +61,16 @@ else
   echo "➡️ params_source=collections; env='${COMMON_ENV_FILE}'; common_environment='${COMMON_ENV}'"
 fi
 
+merge_envgene_newman_environment || exit 1
+if [[ "${ENVGENE_NEWMAN_ENV_APPLIED}" == "true" ]]; then
+  # EnvGene file wins over any --environment already present in flags (legacy collections).
+  if [[ "${NEWMAN_FLAGS_CLI:-}" == *"--environment"* ]]; then
+    echo "⚠️ WARNING: replacing TEST_PARAMS/NEWMAN_FLAGS --environment with EnvGene-merged file"
+    NEWMAN_FLAGS_CLI="$(echo "${NEWMAN_FLAGS_CLI}" | sed -E 's/(^|[[:space:]])--environment[[:space:]]+[^[:space:]]+//g' | sed -E 's/^[[:space:]]+//;s/[[:space:]]+$//;s/[[:space:]]+/ /g')"
+  fi
+  echo "➡️ Newman environment file='${COMMON_ENV_FILE}'"
+fi
+
 # ============================================
 # Launching Newman collections
 # ============================================
@@ -89,6 +99,8 @@ if ! local_run_enabled; then
                   env_flags="--environment env_${idx}.json --export-environment env_$((idx+1)).json"
               fi
               nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${env_flags} ${NEWMAN_REPORTING}"
+          elif [[ "${ENVGENE_NEWMAN_ENV_APPLIED}" == "true" ]]; then
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} --environment ${COMMON_ENV_FILE} ${NEWMAN_REPORTING}"
           else
               nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${NEWMAN_REPORTING}"
           fi

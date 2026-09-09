@@ -63,7 +63,8 @@ flowchart TD
 #### Input for Project Argo Pipeline
 
 - __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
-- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Defaults to `ENVIRONMENT_NAME` when unset
+- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Defaults to `ENVIRONMENT_NAME` when unset. When `ATP_ENVGENE_CONFIGURATION` is set, this file is expanded (not overwritten) with flattened EnvGene variables; if the file is missing, a new Postman environment is created at the requested path (or `atp-generated.postman_environment.json` when no path is given)
+- __ATP_ENVGENE_CONFIGURATION__ - Optional. Rendered EnvGene `systems` JSON (from `environment-configuration` template). Flattened to `SYSTEM_CONNECTION_FIELD` variables (uppercase, non-alphanumeric → `_`) and merged into the Newman `--environment` file. EnvGene values override existing keys. Empty/unset skips merge
 - __EXTRA_VARS__ - Optional. Semicolon/comma-separated `KEY=VALUE` pairs injected into the runner (e.g. `COMMON_ENVIRONMENT=true;NEWMAN_FLAGS=--insecure`). Prefer `;` between pairs when values contain spaces
 - __COMMON_ENVIRONMENT__ - Optional. When using `execution_list`, set via `EXTRA_VARS` (or env). Truthy values: `true`, `1`, `yes` (case-insensitive). Enables env chaining across collections
 - __NEWMAN_FLAGS__ - Optional. When using `execution_list`, Newman CLI flags via `EXTRA_VARS` (or env), e.g. `--insecure --delay-request 100` or `--working-dir path/to/files`. JSON `flags` are ignored for this format. When `NEWMAN_FLAGS` contains `--working-dir`, it overrides `TEST_PARAMS` `working-dir`
