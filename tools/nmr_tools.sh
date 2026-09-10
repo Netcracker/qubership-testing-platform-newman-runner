@@ -200,7 +200,7 @@ write_allure_environment_properties() {
     : > "$props_file"
 
     append_allure_property "$props_file" "ATP_APPLICATION_VERSION" "${ATP_APPLICATION_VERSION:-}"
-    append_allure_property "$props_file" "ORIGINAL_PIPELINE_SOURCE" "${ORIGINAL_PIPELINE_SOURCE:-}"
+    append_allure_property "$props_file" "TRIGGER_PIPELINE_SOURCE" "${TRIGGER_PIPELINE_SOURCE:-}"
 
     echo "📝 Wrote Allure environment.properties to ${props_file}"
 }

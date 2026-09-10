@@ -43,8 +43,8 @@ spec:
             value: "{{ .Values.EXTRA_VARS }}"
           - name: TRIGGER_AUTHOR
             value: "{{ .Values.TRIGGER_AUTHOR }}"
-          - name: ORIGINAL_PIPELINE_SOURCE
-            value: "{{ .Values.ORIGINAL_PIPELINE_SOURCE }}"
+          - name: TRIGGER_PIPELINE_SOURCE
+            value: "{{ .Values.TRIGGER_PIPELINE_SOURCE }}"
           - name: ATP_APPLICATION_VERSION
             value: "{{ .Values.APPLICATION_NAME }}:{{ .Values.ARTIFACT_DESCRIPTOR_VERSION }}"
           - name: CURRENT_DATE
