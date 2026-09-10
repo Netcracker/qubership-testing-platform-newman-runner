@@ -154,3 +154,89 @@ local_run_enabled() {
       ;;
   esac
 }
+
+# Escape a value for Java .properties (Allure environment.properties).
+# Uses '=' as the key/value separator, so ':' in values is kept as-is.
+_escape_allure_property_value() {
+    local val="${1-}"
+    val="${val//\\/\\\\}"
+    val="${val//$'\r'/}"
+    val="${val//$'\n'/\\n}"
+    printf '%s' "$val"
+}
+
+# Append KEY=VALUE to an Allure environment.properties file. Empty values are skipped.
+# Parameters:
+#   $1 - properties file path
+#   $2 - key
+#   $3 - value
+append_allure_property() {
+    local props_file="$1"
+    local key="$2"
+    local val="${3-}"
+    if [[ -z "$val" ]]; then
+        echo "ℹ️ Allure environment: ${key} is empty, skipping"
+        return 0
+    fi
+    val="$(_escape_allure_property_value "$val")"
+    printf '%s=%s\n' "$key" "$val" >> "$props_file"
+    echo "ℹ️ Allure environment: ${key}=${val}"
+}
+
+# Write Allure environment.properties for the report Environments section.
+# Allure Newman does not pick up process env vars automatically; it reads
+# this file from the results directory after the run.
+# Parameters:
+#   $1 - allure-results directory
+write_allure_environment_properties() {
+    local results_dir="${1:-}"
+    if [[ -z "$results_dir" ]]; then
+        echo "⚠️ Skipping Allure environment.properties: results directory is empty" >&2
+        return 0
+    fi
+
+    mkdir -p "$results_dir"
+    local props_file="${results_dir}/environment.properties"
+    : > "$props_file"
+
+    append_allure_property "$props_file" "ATP_APPLICATION_VERSION" "${ATP_APPLICATION_VERSION:-}"
+    append_allure_property "$props_file" "TRIGGER_PIPELINE_SOURCE" "${TRIGGER_PIPELINE_SOURCE:-}"
+
+    echo "📝 Wrote Allure environment.properties to ${props_file}"
+}
+
+# Write Allure executor.json for the Executors widget.
+# TRIGGER_AUTHOR is shown as executor name (same as Bruno runner).
+# Parameters:
+#   $1 - allure-results directory
+write_allure_executor_json() {
+    local results_dir="${1:-}"
+    if [[ -z "$results_dir" ]]; then
+        echo "⚠️ Skipping Allure executor.json: results directory is empty" >&2
+        return 0
+    fi
+
+    mkdir -p "$results_dir"
+    local executor_file="${results_dir}/executor.json"
+    local trigger_author
+    trigger_author="$(printf '%s' "${TRIGGER_AUTHOR:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    if [[ -z "$trigger_author" ]]; then
+        trigger_author="runner"
+        echo "ℹ️ Allure executor: TRIGGER_AUTHOR is empty, using '${trigger_author}'"
+    fi
+
+    jq -n \
+      --arg name "$trigger_author" \
+      --arg type "atp3-newman-runner" \
+      '{name: $name, type: $type}' > "$executor_file"
+
+    echo "📝 Wrote Allure executor.json (name=${trigger_author}) to ${executor_file}"
+}
+
+# Write Allure Environments + Executors metadata after Newman finishes.
+# Parameters:
+#   $1 - allure-results directory
+write_allure_report_metadata() {
+    write_allure_environment_properties "$1"
+    write_allure_executor_json "$1"
+}
