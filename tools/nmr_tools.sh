@@ -81,8 +81,6 @@ is_secret_var() {
 check_mandatory_env_vars() {
     ## Check mandatory environment variables
     check_env_var "ENVIRONMENT_NAME" ""
-    check_env_var "ATP_TESTS_GIT_REPO_URL" ""
-    check_env_var "ATP_TESTS_GIT_REPO_BRANCH" ""
     check_env_var "TEST_PARAMS" ""
 
     ## Check mandatory environment variables for S3 reporting
