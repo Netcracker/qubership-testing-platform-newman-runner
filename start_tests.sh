@@ -17,6 +17,8 @@ set -e
 
 source /tools/nmr_tools.sh
 source /tools/test_params_convert.sh
+# shellcheck disable=SC1091
+source /tools/merge-environment-configuration.sh
 
 # Local run flag
 LOCAL_RUN="${LOCAL_RUN:-false}"
@@ -39,11 +41,13 @@ extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
 PARAMS_SOURCE=$(echo "$TEST_PARAMS" | jq -r '.params_source // "collections"')
 if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
   # execution_list format: env file, common chaining, and CLI flags come from shell / EXTRA_VARS
-  if [ -z "${NEWMAN_ENVIRONMENT_FILE:-}" ]; then
-    export NEWMAN_ENVIRONMENT_FILE="${TMP_DIR:-$project_dir}/environment-configuration.json"
-    echo "✅ Defaulted NEWMAN_ENVIRONMENT_FILE to rendered configuration: $NEWMAN_ENVIRONMENT_FILE"
+  # Newman always runs against the rendered Postman environment-configuration.json.
+  # When NEWMAN_ENVIRONMENT_FILE is set, that file is merged into the rendered one first.
+  if [ -n "${NEWMAN_ENVIRONMENT_FILE:-}" ]; then
+    merge_newman_environment_file "$NEWMAN_ENVIRONMENT_FILE"
   fi
-  NEWMAN_ENVIRONMENT_FILE="${NEWMAN_ENVIRONMENT_FILE:-$ENVIRONMENT_NAME}"
+  export NEWMAN_ENVIRONMENT_FILE="${TMP_DIR:-$project_dir}/environment-configuration.json"
+  echo "✅ Using rendered configuration as Newman environment: $NEWMAN_ENVIRONMENT_FILE"
   COMMON_ENV_FILE="$NEWMAN_ENVIRONMENT_FILE"
   case "${COMMON_ENVIRONMENT:-}" in
     [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) COMMON_ENV="true" ;;

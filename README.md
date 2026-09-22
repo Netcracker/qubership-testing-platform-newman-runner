@@ -63,8 +63,8 @@ flowchart TD
 #### Input for Project Argo Pipeline
 
 - __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
-- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Defaults to `ENVIRONMENT_NAME` when unset. When `ATP_ENVGENE_CONFIGURATION` is set, this file is expanded (not overwritten) with flattened EnvGene variables; if the file is missing, a new Postman environment is created at the requested path (or `atp-generated.postman_environment.json` when no path is given)
-- __ATP_ENVGENE_CONFIGURATION__ - Optional. Rendered EnvGene `systems` JSON (from `environment-configuration` template). Flattened to `SYSTEM_CONNECTION_FIELD` variables (uppercase, non-alphanumeric → `_`) and merged into the Newman `--environment` file. EnvGene values override existing keys. Empty/unset skips merge
+- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Newman always runs with the rendered `environment-configuration.json` (a Postman environment produced from the repo template). When this variable is unset, that rendered file is used as-is. When it is set, the file is merged into the rendered environment: `values` are combined by key (template-only keys stay; the same key keeps the Newman file's `value`, `type`, and `enabled`), and other top-level keys from the file overwrite the rendered file. A relative path is resolved from the cloned repo root. Missing or invalid JSON fails the job. If no template was rendered, the Newman file is written to `environment-configuration.json`
+- __ATP_ENVGENE_CONFIGURATION__ - Optional. Contents of the rendered `environment-configuration.json` after `${VAR}` substitution. For this runner that file is a Postman environment. Refreshed after a `NEWMAN_ENVIRONMENT_FILE` merge. Empty when no template was rendered and no merge ran
 - __EXTRA_VARS__ - Optional. Semicolon/comma-separated `KEY=VALUE` pairs injected into the runner (e.g. `COMMON_ENVIRONMENT=true;NEWMAN_FLAGS=--insecure`). Prefer `;` between pairs when values contain spaces
 - __COMMON_ENVIRONMENT__ - Optional. When using `execution_list`, set via `EXTRA_VARS` (or env). Truthy values: `true`, `1`, `yes` (case-insensitive). Enables env chaining across collections
 - __NEWMAN_FLAGS__ - Optional. When using `execution_list`, Newman CLI flags via `EXTRA_VARS` (or env), e.g. `--insecure --delay-request 100` or `--working-dir path/to/files`. JSON `flags` are ignored for this format. When `NEWMAN_FLAGS` contains `--working-dir`, it overrides `TEST_PARAMS` `working-dir`
@@ -88,7 +88,7 @@ flowchart TD
 
 #### TEST_PARAMS Example (execution_list — preferred)
 
-Bruno/Playwright-style format. Collection paths are a comma-separated string in `name`. Env file, common-env chaining, and CLI flags come from `NEWMAN_ENVIRONMENT_FILE` / `COMMON_ENVIRONMENT` / `NEWMAN_FLAGS`, not from JSON.
+Bruno/Playwright-style format. Collection paths are a comma-separated string in `name`. An optional Postman env file, common-env chaining, and CLI flags come from `NEWMAN_ENVIRONMENT_FILE` / `COMMON_ENVIRONMENT` / `NEWMAN_FLAGS`, not from JSON. When `NEWMAN_ENVIRONMENT_FILE` is set, it is merged into the rendered `environment-configuration.json`, and Newman runs with that rendered file.
 
 ```json
 {
