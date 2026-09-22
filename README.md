@@ -63,12 +63,18 @@ flowchart TD
 #### Input for Project Argo Pipeline
 
 - __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
-- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format. Newman always runs with the rendered `environment-configuration.json` (a Postman environment produced from the repo template). When this variable is unset, that rendered file is used as-is. When it is set, the file is merged into the rendered environment: `values` are combined by key (template-only keys stay; the same key keeps the Newman file's `value`, `type`, and `enabled`), and other top-level keys from the file overwrite the rendered file. A relative path is resolved from the cloned repo root. Missing or invalid JSON fails the job. If no template was rendered, the Newman file is written to `environment-configuration.json`
+- __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format.
+  Newman always runs with the rendered `environment-configuration.json` (a Postman environment produced from the repository template).
+  When this variable is unset, that rendered file is used as-is. When it is set, the file is merged into the rendered environment:
+  `values` are combined by key (template-only keys stay; the same key keeps the Newman file's `value`, `type`, and `enabled`),
+  and other top-level keys from the file overwrite the rendered file.
+  A relative path is resolved from the cloned repository root. Missing or invalid JSON fails the job.
+  If no template was rendered, the Newman file is written to `environment-configuration.json`
 - __ATP_ENVGENE_CONFIGURATION__ - Optional. Contents of the rendered `environment-configuration.json` after `${VAR}` substitution. For this runner that file is a Postman environment. Refreshed after a `NEWMAN_ENVIRONMENT_FILE` merge. Empty when no template was rendered and no merge ran
 - __EXTRA_VARS__ - Optional. Semicolon/comma-separated `KEY=VALUE` pairs injected into the runner (e.g. `COMMON_ENVIRONMENT=true;NEWMAN_FLAGS=--insecure`). Prefer `;` between pairs when values contain spaces
 - __COMMON_ENVIRONMENT__ - Optional. When using `execution_list`, set via `EXTRA_VARS` (or env). Truthy values: `true`, `1`, `yes` (case-insensitive). Enables env chaining across collections
 - __NEWMAN_FLAGS__ - Optional. When using `execution_list`, Newman CLI flags via `EXTRA_VARS` (or env), e.g. `--insecure --delay-request 100` or `--working-dir path/to/files`. JSON `flags` are ignored for this format. When `NEWMAN_FLAGS` contains `--working-dir`, it overrides `TEST_PARAMS` `working-dir`
-- __MAVEN_BUILD__ - Optional. When `true` / `1` / `yes` (case-insensitive) via `EXTRA_VARS` (or env), runs `mvn install -Dmaven.wagon.http.ssl.insecure=true -s ./settings.xml` in the cloned collections repo before tests. Requires `settings.xml` at the clone root. Preferred over legacy `TEST_PARAMS.maven_build`; if both are set, env wins and a warning is logged
+- __MAVEN_BUILD__ - Optional. When `true` / `1` / `yes` (case-insensitive) via `EXTRA_VARS` (or env), runs `mvn install -Dmaven.wagon.http.ssl.insecure=true -s ./settings.xml` in the cloned collections repository before tests. Requires `settings.xml` at the clone root. Preferred over legacy `TEST_PARAMS.maven_build`; if both are set, env wins and a warning is logged
 - __ATP_TESTS_GIT_REPO_URL__ - Git repository URL
 - __ATP_TESTS_GIT_REPO_BRANCH__ - Branch to clone
 - __ATP_TESTS_GIT_TOKEN__ - Git access token
@@ -184,14 +190,14 @@ During the collection run, reports are generated in four formats: CLI, JSON, HTM
 This guide explains how to prepare your local machine to run the service and Newman tests with reports.
 
 ## 1) Prerequisites
-- **Node.js LTS** (includes `npm`). Check:
+- __Node.js LTS__ (includes `npm`). Check:
   ```bash
   node -v && npm -v
   ```
-- **Git** (to use Git Bash / PowerShell).
+- __Git__ (to use Git Bash / PowerShell).
 
 ## 2) Install CLI utilities: `jq` and `s5cmd`
-Recommended on Windows: install via **Scoop**¹
+Recommended on Windows: install via __Scoop__¹
 ```powershell
 # Install Scoop (if not installed)¹
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
@@ -218,7 +224,7 @@ jq --version
 s5cmd --version
 ```
 
-> **Git Bash note:** if commands aren’t visible, add Scoop shims to PATH:
+> __Git Bash note:__ if commands aren’t visible, add Scoop shims to PATH:
 
 ## 3) Install project dependencies
 In the repository root:
@@ -227,36 +233,36 @@ npm install
 ```
 
 ## 4) Newman reporters (Allure / json-summary / htmlextra)
-If you see errors like “could not find <reporter>”, install Newman and reporters **globally** (quick fix for local dev):
+If you see errors like “could not find <reporter>”, install Newman and reporters __globally__ (quick fix for local dev):
 ```bash
 npm i -g newman newman-reporter-allure newman-reporter-json-summary newman-reporter-htmlextra
 ```
 
 ## 5) Troubleshooting
-- **`newman: could not find "<reporter>"`** → install reporters where Newman runs  
+- __newman: could not find "<reporter>"__ → install reporters where Newman runs
   (use the global command above, or add reporters to `devDependencies` and run with `npx`).
-- **`jq: command not found`** → install via Scoop/Winget/Choco; re-open terminal.
-- **`s5cmd: command not found`** → ensure it’s installed and visible in PATH (see note above).
-- **Invalid JSON errors** → ensure `local_test_params.json` is valid UTF-8 without BOM and without comments/trailing commas.
+- __jq: command not found__ → install via Scoop/Winget/Choco; re-open terminal.
+- __s5cmd: command not found__ → ensure it’s installed and visible in PATH (see note above).
+- __Invalid JSON errors__ → ensure `local_test_params.json` is valid UTF-8 without BOM and without comments/trailing commas.
 
 ## Local Run Collections without reports (via `local_start.sh`)
 
 Below are minimal steps to run Newman collections locally via the prepared script.
 
 ### Pre-step: Prepare test data (REQUIRED)
-Before running `local_start.sh`, you **must** prepare test data for conversion:
+Before running `local_start.sh`, you __must__ prepare test data for conversion:
 1. Create/modify file `tools/local_test_params.json` and fill it with test data
 2. Download the collection(s) and environment(s) you need to run into the local-collection folder. The paths to the collections and environment(s) must match the contents of file `tools/local_test_params.json`
 
 
-**Example content for `tools/local_test_params.json`:**
-```
+__Example content for `tools/local_test_params.json`:__
+```json
 {"collections":["project_name/Acquire_Token.postman_collection.json""],"env":"environment/dev_env.postman_environment.json","env_vars":{"cluster":".k8s-dev123.k8s.test.somedomain.com","namespace":"project-name-ns123"},"flags":["--insecure"]}
 ```
 
 ### Quick Start
 ```bash
-# from repo root
+# from repository root
 
 # Prepare test data
 #    - create ./tools/local_test_params.json with project/job data (see example above)
@@ -265,9 +271,9 @@ Before running `local_start.sh`, you **must** prepare test data for conversion:
 ```
 
 ### What `local_start.sh` does
-1. Enables strict bash mode (`set -euo pipefail`) and defines a helper to validate JSON via `jq`.
-2. Loads and validates `tools/local_test_params.json` into `TEST_PARAMS`.   
-3. Ensures `start_tests.sh` exists at repo root and executes it (actual Newman run and post-processing).
+1. Enables strict Bash mode (`set -euo pipefail`) and defines a helper to validate JSON via `jq`.
+2. Loads and validates `tools/local_test_params.json` into `TEST_PARAMS`.
+3. Ensures `start_tests.sh` exists at repository root and executes it (actual Newman run and post-processing).
 
 #### Example `tools/local_test_params.json`
 Extended example (aligned with your format):

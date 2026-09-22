@@ -79,7 +79,7 @@ if ! local_run_enabled; then
   echo "🚀 Launching Newman collections"
 
   # Move into the temp directory
-  cd $TMP_DIR
+  cd "$TMP_DIR"
 
   NEWMAN_REPORTING="\
   --reporters cli,allure,json-summary,htmlextra \
