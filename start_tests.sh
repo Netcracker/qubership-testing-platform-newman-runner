@@ -17,6 +17,8 @@ set -e
 
 source /tools/nmr_tools.sh
 source /tools/test_params_convert.sh
+# shellcheck disable=SC1091
+source /tools/merge-environment-configuration.sh
 
 # Local run flag
 LOCAL_RUN="${LOCAL_RUN:-false}"
@@ -33,12 +35,19 @@ TEST_PARAMS="$(convert_line_to_test_params "$TEST_PARAMS")" || exit 1
 
 ## Check and extract input test parameters for Newman
 extract_newman_collections_list "$TEST_PARAMS" "NEWMAN_COLLECTIONS_ARRAY"
+resolve_newman_collections "$TMP_DIR" "NEWMAN_COLLECTIONS_ARRAY" || exit 1
 extract_flags_to_string "$TEST_PARAMS" "NEWMAN_FLAGS_CLI"
 
 PARAMS_SOURCE=$(echo "$TEST_PARAMS" | jq -r '.params_source // "collections"')
 if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
   # execution_list format: env file, common chaining, and CLI flags come from shell / EXTRA_VARS
-  NEWMAN_ENVIRONMENT_FILE="${NEWMAN_ENVIRONMENT_FILE:-$ENVIRONMENT_NAME}"
+  # Newman always runs against the rendered Postman environment-configuration.json.
+  # When NEWMAN_ENVIRONMENT_FILE is set, that file is merged into the rendered one first.
+  if [ -n "${NEWMAN_ENVIRONMENT_FILE:-}" ]; then
+    merge_newman_environment_file "$NEWMAN_ENVIRONMENT_FILE"
+  fi
+  export NEWMAN_ENVIRONMENT_FILE="${TMP_DIR:-$project_dir}/environment-configuration.json"
+  echo "✅ Using rendered configuration as Newman environment: $NEWMAN_ENVIRONMENT_FILE"
   COMMON_ENV_FILE="$NEWMAN_ENVIRONMENT_FILE"
   case "${COMMON_ENVIRONMENT:-}" in
     [Tt][Rr][Uu][Ee]|1|[Yy][Ee][Ss]) COMMON_ENV="true" ;;
@@ -61,6 +70,7 @@ else
   echo "➡️ params_source=collections; env='${COMMON_ENV_FILE}'; common_environment='${COMMON_ENV}'"
 fi
 
+
 # ============================================
 # Launching Newman collections
 # ============================================
@@ -69,7 +79,7 @@ if ! local_run_enabled; then
   echo "🚀 Launching Newman collections"
 
   # Move into the temp directory
-  cd $TMP_DIR
+  cd "$TMP_DIR"
 
   NEWMAN_REPORTING="\
   --reporters cli,allure,json-summary,htmlextra \
@@ -90,7 +100,7 @@ if ! local_run_enabled; then
               fi
               nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${env_flags} ${NEWMAN_REPORTING}"
           else
-              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${NEWMAN_REPORTING}"
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} --environment ${COMMON_ENV_FILE} ${NEWMAN_REPORTING}"
           fi
       echo "Running command: '${nr_command}'"
 

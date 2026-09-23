@@ -81,8 +81,6 @@ is_secret_var() {
 check_mandatory_env_vars() {
     ## Check mandatory environment variables
     check_env_var "ENVIRONMENT_NAME" ""
-    check_env_var "ATP_TESTS_GIT_REPO_URL" ""
-    check_env_var "ATP_TESTS_GIT_REPO_BRANCH" ""
     check_env_var "TEST_PARAMS" ""
 
     ## Check mandatory environment variables for S3 reporting
@@ -115,6 +113,55 @@ extract_newman_collections_list () {
     printf "    - %s\n" "${collections[@]}"
 }
 
+discover_newman_collections() {
+    local search_root="$1" output_var_name="$2"
+    local -a collections=()
+
+    if [[ ! -d "$search_root" ]]; then
+        echo "❌ ERROR: Newman collection search directory does not exist: $search_root" >&2
+        return 1
+    fi
+
+    mapfile -t collections < <(
+        cd "$search_root" &&
+        find . \
+            \( -path './.git' -o -path './node_modules' \) -prune -o \
+            -type f -iname '*.postman_collection.json' -print |
+            sed 's|^\./||' |
+            sort -u
+    )
+
+    [[ -n "$output_var_name" ]] && eval "$output_var_name=(\"\${collections[@]}\")"
+
+    echo "➡️ Discovered Newman collections:"
+    printf "    - %s\n" "${collections[@]}"
+}
+
+resolve_newman_collections() {
+    local search_root="$1" output_var_name="$2"
+    local -a collections=()
+    local collection
+
+    eval "collections=(\"\${${output_var_name}[@]}\")"
+
+    for collection in "${collections[@]}"; do
+        if [[ "${collection,,}" == "all" && "${#collections[@]}" -ne 1 ]]; then
+            echo "❌ ERROR: 'all' must be the only Newman collection value" >&2
+            return 1
+        fi
+    done
+
+    if [[ "${#collections[@]}" -eq 1 && "${collections[0],,}" == "all" ]]; then
+        discover_newman_collections "$search_root" "$output_var_name" || return 1
+
+        eval "collections=(\"\${${output_var_name}[@]}\")"
+        if [[ "${#collections[@]}" -eq 0 ]]; then
+            echo "❌ ERROR: No Newman collections found in: $search_root" >&2
+            return 1
+        fi
+    fi
+}
+
 extract_flags_to_string() {
     local json_input="$1"
     local target_var_name="$2"
@@ -129,6 +176,7 @@ extract_flags_to_string() {
     # Export variable
     export "$target_var_name"
 }
+
 
 # Return:
 #   0 — if LOCAL_RUN=true
