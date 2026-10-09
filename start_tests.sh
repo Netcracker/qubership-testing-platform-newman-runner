@@ -158,6 +158,10 @@ if local_run_enabled; then
   fi
 fi
 
+# Remove HTTP attachments from passed tests before the final Allure upload.
+# DEBUG_HTTP_MODE=true preserves attachments for passed tests.
+node /scripts/tools/prune-allure-attachments.js "${TMP_DIR}/allure-results" || true
+
 # Allure Newman reads Environments from environment.properties and Executors
 # from executor.json in resultsDir (not from process env). Write after Newman
 # so the reporter cannot overwrite them.

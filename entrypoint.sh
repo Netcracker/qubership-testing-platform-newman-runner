@@ -24,8 +24,8 @@ echo "📅 Timestamp: $(date)"
 
 # Set default upload method
 echo "📤 Provided upload method: $UPLOAD_METHOD"
-if DEBUG_HTTP_MODE=true; then
-  export UPLOAD_METHOD=${UPLOAD_METHOD:-sync}
+if [[ "${DEBUG_HTTP_MODE,,}" == "true" ]]; then
+  export UPLOAD_METHOD="${UPLOAD_METHOD:-sync}"
   echo "📤 Debug HTTP mode is enabled, defaulting upload method to: $UPLOAD_METHOD"
 else
   echo "📤 Debug HTTP mode is disabled, defaulting upload method to cp."
