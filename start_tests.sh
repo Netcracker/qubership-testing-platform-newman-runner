@@ -66,7 +66,7 @@ if [[ "$PARAMS_SOURCE" == "execution_list" ]]; then
 else
   # legacy collections format: env + common_environment + flags from TEST_PARAMS JSON
   COMMON_ENV=$(echo "$TEST_PARAMS" | jq -r '.common_environment')
-  COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env')
+  COMMON_ENV_FILE=$(echo "$TEST_PARAMS" | jq -r '.env // empty')
   echo "➡️ params_source=collections; env='${COMMON_ENV_FILE}'; common_environment='${COMMON_ENV}'"
 fi
 
@@ -94,13 +94,20 @@ if ! local_run_enabled; then
 
           if [[ "$COMMON_ENV" == "true" ]]; then
               if (( idx == 1 )); then
-                  env_flags="--environment ${COMMON_ENV_FILE} --export-environment env_2.json"
+                  env_flags="--export-environment env_2.json"
+                  if [[ -n "$COMMON_ENV_FILE" ]]; then
+                      env_flags="--environment ${COMMON_ENV_FILE} ${env_flags}"
+                  fi
               else
                   env_flags="--environment env_${idx}.json --export-environment env_$((idx+1)).json"
               fi
               nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${env_flags} ${NEWMAN_REPORTING}"
           else
-              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} --environment ${COMMON_ENV_FILE} ${NEWMAN_REPORTING}"
+              env_flags=""
+              if [[ -n "$COMMON_ENV_FILE" ]]; then
+                  env_flags="--environment ${COMMON_ENV_FILE}"
+              fi
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${env_flags} ${NEWMAN_REPORTING}"
           fi
       echo "Running command: '${nr_command}'"
 
