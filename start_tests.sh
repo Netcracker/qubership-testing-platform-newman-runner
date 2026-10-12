@@ -81,6 +81,13 @@ if ! local_run_enabled; then
   # Move into the temp directory
   cd "$TMP_DIR"
 
+  # Do not pass a missing or empty rendered environment to Newman.
+  if [[ -n "$COMMON_ENV_FILE" && ! -s "$COMMON_ENV_FILE" ]]; then
+      echo "⚠️ Newman environment file is missing or empty: ${COMMON_ENV_FILE}; running without --environment"
+      COMMON_ENV_FILE=""
+      COMMON_ENV="false"
+  fi
+
   NEWMAN_REPORTING="\
   --reporters cli,allure,json-summary,htmlextra \
   --reporter-allure-resultsDir ${TMP_DIR}/allure-results \
