@@ -30,6 +30,8 @@ echo "📤 Upload method: $UPLOAD_METHOD"
 # shellcheck disable=SC1091
 source /scripts/error-handler.sh
 # shellcheck disable=SC1091
+source /scripts/allure-labels.sh
+# shellcheck disable=SC1091
 source /scripts/init.sh
 # shellcheck disable=SC1091
 source /scripts/git-clone.sh
