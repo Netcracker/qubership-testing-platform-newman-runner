@@ -86,6 +86,13 @@ test('command line rewrites the file once and leaves it alone on the second run'
   assert.equal(JSON.parse(afterFirst).event.length, 1);
 });
 
+test('command line accepts a collection file that starts with a byte order mark', () => {
+  const bom = String.fromCharCode(0xfeff);
+  const file = writeCollection(`${bom}{"item":[]}`);
+  execFileSync(process.execPath, [SCRIPT, file]);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).event.length, 1);
+});
+
 test('command line leaves a file that is not a collection untouched and exits non-zero', () => {
   for (const contents of ['not json', '{"foo":1}']) {
     const file = writeCollection(contents);

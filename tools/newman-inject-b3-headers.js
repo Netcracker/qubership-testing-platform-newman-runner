@@ -75,7 +75,10 @@ function main() {
 
   let collection;
   try {
-    const raw = fs.readFileSync(collectionPath, 'utf8').replace(/^﻿/, '');
+    let raw = fs.readFileSync(collectionPath, 'utf8');
+    if (raw.charCodeAt(0) === 0xfeff) {
+      raw = raw.slice(1);
+    }
     collection = JSON.parse(raw);
   } catch (err) {
     console.error(`⚠️ Cannot read ${collectionPath} as JSON, B3 headers not injected: ${err.message}`);
