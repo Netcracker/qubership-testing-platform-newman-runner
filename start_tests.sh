@@ -19,6 +19,8 @@ source /tools/nmr_tools.sh
 source /tools/test_params_convert.sh
 # shellcheck disable=SC1091
 source /tools/merge-environment-configuration.sh
+# shellcheck disable=SC1091
+source /scripts/tools/b3_trace.sh
 
 # Local run flag
 LOCAL_RUN="${LOCAL_RUN:-false}"
@@ -92,15 +94,25 @@ if ! local_run_enabled; then
   for collection in "${NEWMAN_COLLECTIONS_ARRAY[@]}"; do
           idx=$((idx + 1))
 
+          # One collection run is one test case: a single X-B3-TraceId for all its requests, a new
+          # X-B3-SpanId per request. The trace id travels as a global variable, which Newman does not
+          # write into the exported environment chained to the next collection.
+          b3_flags=""
+          b3_trace_id="$(compose_b3_trace_id)"
+          if [[ -n "$b3_trace_id" ]]; then
+              node /tools/newman-inject-b3-headers.js "$collection" || true
+              b3_flags="--global-var X_B3_TRACE_ID=${b3_trace_id}"
+          fi
+
           if [[ "$COMMON_ENV" == "true" ]]; then
               if (( idx == 1 )); then
                   env_flags="--environment ${COMMON_ENV_FILE} --export-environment env_2.json"
               else
                   env_flags="--environment env_${idx}.json --export-environment env_$((idx+1)).json"
               fi
-              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${env_flags} ${NEWMAN_REPORTING}"
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${b3_flags} ${env_flags} ${NEWMAN_REPORTING}"
           else
-              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} --environment ${COMMON_ENV_FILE} ${NEWMAN_REPORTING}"
+              nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${b3_flags} --environment ${COMMON_ENV_FILE} ${NEWMAN_REPORTING}"
           fi
       echo "Running command: '${nr_command}'"
 
