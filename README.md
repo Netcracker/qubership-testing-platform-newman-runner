@@ -63,6 +63,8 @@ flowchart TD
 #### Input for Project Argo Pipeline
 
 - __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
+- __PROJECT_ID__ - Project identifier from the orchestrator, used as-is in the `X-B3-TraceId` header. See [OpenTelemetry (B3) trace headers](#opentelemetry-b3-trace-headers). When it or `RUN_ID` is not set, the headers are skipped with a warning in the job log
+- __RUN_ID__ - Test run identifier from the orchestrator, used as-is in the `X-B3-TraceId` header. See [OpenTelemetry (B3) trace headers](#opentelemetry-b3-trace-headers)
 - __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format.
   Newman always runs with the rendered `environment-configuration.json` (a Postman environment produced from the repository template).
   When this variable is unset, that rendered file is used as-is. When it is set, the file is merged into the rendered environment:
@@ -176,6 +178,30 @@ The legacy format also supports `"collections": ["all"]` with the same standalon
 - __working-dir__ - Top-level for both formats; passed through as Newman `--working-dir`. Used so file uploads in collections resolve relative to a known path. For GitLab/ATP3 (`execution_list` with hardcoded `TEST_PARAMS`), set via `EXTRA_VARS` → `NEWMAN_FLAGS=--working-dir <path>` instead. If both are set, `NEWMAN_FLAGS` wins
 - __env__ / __common_environment__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_ENVIRONMENT_FILE` and `COMMON_ENVIRONMENT` instead
 - __maven_build__ - Legacy. Boolean; when `true`, runs Maven install after clone (same as `MAVEN_BUILD`). Prefer `MAVEN_BUILD` via `EXTRA_VARS`. Requires `settings.xml` at the clone root; missing file or `mvn` failure fails the job
+
+## OpenTelemetry (B3) trace headers
+
+The runner stamps every request in a collection with B3 trace headers, so a tail-sampling collector can group the
+calls one collection makes under a single trace.
+
+| Header         | Value                                               | Scope                              |
+|----------------|-----------------------------------------------------|------------------------------------|
+| `X-B3-TraceId` | `<PROJECT_ID><RUN_ID><testcase_id>` (13 characters) | Fixed for the whole collection run |
+| `X-B3-SpanId`  | 16 lowercase hex characters                         | Fresh on every request             |
+| `X-B3-Sampled` | `1`                                                 | Always                             |
+
+`PROJECT_ID` and `RUN_ID` are used as-is from the orchestrator; `testcase_id` is a random 5-character hex value the
+runner generates once per collection run, since one Newman collection is one test case.
+
+No change to your collection is required. Before each run, the runner adds a collection-level pre-request script to
+the collection file in the temporary clone. It runs ahead of any collection-level pre-request script your collection
+already defines, so a script of your own can still override the headers. The trace ID is passed to Newman as the
+global variable `X_B3_TRACE_ID`, so your scripts can read it with `pm.globals.get('X_B3_TRACE_ID')`, for example to
+log it or assert on it. Because it is a global variable, it is not written into the environment file that
+`COMMON_ENVIRONMENT` chains from one collection to the next.
+
+Headers are skipped, with a warning in the job log, when `PROJECT_ID` or `RUN_ID` is not set.
+
 ## Reporting
 
 During the collection run, reports are generated in four formats: CLI, JSON, HTML, and Allure.
