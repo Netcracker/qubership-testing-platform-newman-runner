@@ -23,8 +23,14 @@ echo "📁 Working directory: $(pwd)"
 echo "📅 Timestamp: $(date)"
 
 # Set default upload method
-export UPLOAD_METHOD="${UPLOAD_METHOD:-sync}"
-echo "📤 Upload method: $UPLOAD_METHOD"
+echo "📤 Provided upload method: $UPLOAD_METHOD"
+if [[ "${DEBUG_HTTP_MODE,,}" == "true" ]]; then
+  export UPLOAD_METHOD="${UPLOAD_METHOD:-sync}"
+  echo "📤 Debug HTTP mode is enabled, defaulting upload method to: $UPLOAD_METHOD"
+else
+  echo "📤 Debug HTTP mode is disabled, defaulting upload method to cp."
+  export UPLOAD_METHOD="cp"
+fi
 
 # Import modular components
 # shellcheck disable=SC1091
@@ -67,7 +73,7 @@ maven_install           || fail "Maven install failed"
 render_environment_configuration || fail "Render Environment Configuration Failed"
 setup_runtime_environment     || fail "Runtime setup failed"
 start_upload_monitoring
-cp /start_tests.sh $TMP_DIR/start_tests.sh
+cp /start_tests.sh "$TMP_DIR/start_tests.sh"
 run_tests                     || fail "Test runner failed"
 
 echo "✅ Test job finished successfully!"
