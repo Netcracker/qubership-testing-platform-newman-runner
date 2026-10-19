@@ -172,7 +172,6 @@ fi
 
 # Remove HTTP attachments from passed tests before the final Allure upload.
 # DEBUG_HTTP_MODE=true preserves attachments for passed tests.
-# shellcheck disable=SC2086
 node /scripts/tools/prune-allure-attachments.js "${TMP_DIR}/allure-results" || true
 
 # Allure Newman reads Environments from environment.properties and Executors
