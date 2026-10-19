@@ -113,17 +113,31 @@ extract_newman_collections_list () {
     printf "    - %s\n" "${collections[@]}"
 }
 
+# Discover *.postman_collection.json files recursively.
+# Parameters:
+#   $1 - search root (repo / TMP_DIR)
+#   $2 - output array variable name
+#   $3 - optional sub-directory relative to search root
+# Returned paths are relative to search root (prefixed with sub-directory if given).
 discover_newman_collections() {
-    local search_root="$1" output_var_name="$2"
-    local -a collections=()
+    local search_root="$1" output_var_name="$2" sub_dir="${3:-}"
+    local -a _nmr_found=()
+    local -a _nmr_collections=()
+    local base_dir="$search_root" prefix=""
+    local file
 
-    if [[ ! -d "$search_root" ]]; then
-        echo "❌ ERROR: Newman collection search directory does not exist: $search_root" >&2
+    if [[ -n "$sub_dir" ]]; then
+        base_dir="${search_root}/${sub_dir}"
+        prefix="${sub_dir}/"
+    fi
+
+    if [[ ! -d "$base_dir" ]]; then
+        echo "❌ ERROR: Newman collection search directory does not exist: $base_dir" >&2
         return 1
     fi
 
-    mapfile -t collections < <(
-        cd "$search_root" &&
+    mapfile -t _nmr_found < <(
+        cd "$base_dir" &&
         find . \
             \( -path './.git' -o -path './node_modules' \) -prune -o \
             -type f -iname '*.postman_collection.json' -print |
@@ -131,21 +145,62 @@ discover_newman_collections() {
             sort -u
     )
 
-    [[ -n "$output_var_name" ]] && eval "$output_var_name=(\"\${collections[@]}\")"
+    for file in "${_nmr_found[@]}"; do
+        _nmr_collections+=("${prefix}${file}")
+    done
 
-    echo "➡️ Discovered Newman collections:"
-    printf "    - %s\n" "${collections[@]}"
+    [[ -n "$output_var_name" ]] && eval "$output_var_name=(\"\${_nmr_collections[@]}\")"
+
+    echo "➡️ Discovered Newman collections${sub_dir:+ in ${sub_dir}}:"
+    printf "    - %s\n" "${_nmr_collections[@]}"
 }
 
+# Normalize a collection entry used as a directory candidate:
+# strip leading "./" and trailing "/". Prints the result.
+_nmr_normalize_entry() {
+    local entry="$1"
+    entry="${entry#./}"
+    while [[ "$entry" == */ ]]; do
+        entry="${entry%/}"
+    done
+    [[ -z "$entry" ]] && entry="."
+    printf '%s' "$entry"
+}
+
+# Print the physical (symlink-resolved) absolute path of an existing directory.
+# Uses cd/pwd -P instead of realpath: BusyBox realpath (Alpine image) has no -e flag.
+_nmr_physical_dir() {
+    (cd "$1" 2>/dev/null && pwd -P)
+}
+
+# Return 0 if the path is relative and has no ".." segment.
+_nmr_is_safe_relative_path() {
+    local path="$1" segment
+    [[ -n "$path" && "$path" != /* ]] || return 1
+    local IFS='/'
+    for segment in $path; do
+        [[ "$segment" == ".." ]] && return 1
+    done
+    return 0
+}
+
+# Resolve Newman collection entries against search_root.
+#   - "all" (standalone only) -> discover every collection from search_root
+#   - existing directory      -> discover collections recursively inside it
+#   - anything else           -> kept as is (explicit collection file)
+# Result is deduplicated (order preserved) and written to output_var_name.
 resolve_newman_collections() {
     local search_root="$1" output_var_name="$2"
     local -a collections=()
-    local collection
+    local -a _nmr_folder=()
+    local -a _nmr_resolved=()
+    local -A _nmr_seen=()
+    local entry normalized sub_dir root_real dir_real
 
     eval "collections=(\"\${${output_var_name}[@]}\")"
 
-    for collection in "${collections[@]}"; do
-        if [[ "${collection,,}" == "all" && "${#collections[@]}" -ne 1 ]]; then
+    for entry in "${collections[@]}"; do
+        if [[ "${entry,,}" == "all" && "${#collections[@]}" -ne 1 ]]; then
             echo "❌ ERROR: 'all' must be the only Newman collection value" >&2
             return 1
         fi
@@ -159,7 +214,67 @@ resolve_newman_collections() {
             echo "❌ ERROR: No Newman collections found in: $search_root" >&2
             return 1
         fi
+        return 0
     fi
+
+    [[ "${#collections[@]}" -eq 0 ]] && return 0
+
+    for entry in "${collections[@]}"; do
+        # Empty entries are left for newman to report (must not expand to the repo root)
+        if [[ -z "$entry" ]]; then
+            _nmr_resolved+=("$entry")
+            continue
+        fi
+
+        normalized="$(_nmr_normalize_entry "$entry")"
+
+        # Every entry (files and directories alike) must be a relative path without '..'
+        if ! _nmr_is_safe_relative_path "$normalized"; then
+            echo "❌ ERROR: Newman collection path must be relative and must not contain '..': $entry" >&2
+            return 1
+        fi
+
+        if [[ -d "${search_root}/${normalized}" ]]; then
+            # Directory entry: must resolve (symlinks included) inside search_root
+            root_real="$(_nmr_physical_dir "$search_root")" || {
+                echo "❌ ERROR: Cannot resolve search root: $search_root" >&2
+                return 1
+            }
+            dir_real="$(_nmr_physical_dir "${search_root}/${normalized}")" || return 1
+            case "${dir_real}/" in
+                "${root_real}/"*) ;;
+                *)
+                    echo "❌ ERROR: Newman collection directory is outside of $search_root: $entry" >&2
+                    return 1
+                    ;;
+            esac
+
+            sub_dir=""
+            [[ "$normalized" != "." ]] && sub_dir="$normalized"
+
+            discover_newman_collections "$search_root" "_nmr_folder" "$sub_dir" || return 1
+            if [[ "${#_nmr_folder[@]}" -eq 0 ]]; then
+                echo "❌ ERROR: No Newman collections found in directory: $entry" >&2
+                return 1
+            fi
+            _nmr_resolved+=("${_nmr_folder[@]}")
+        else
+            # Explicit file entry (or unknown path, left for newman to report)
+            _nmr_resolved+=("$entry")
+        fi
+    done
+
+    # Deduplicate, preserving order
+    collections=()
+    for entry in "${_nmr_resolved[@]}"; do
+        # Key is prefixed: an empty string is not a valid associative array subscript
+        if [[ -z "${_nmr_seen["e:$entry"]+x}" ]]; then
+            _nmr_seen["e:$entry"]=1
+            collections+=("$entry")
+        fi
+    done
+
+    eval "${output_var_name}=(\"\${collections[@]}\")"
 }
 
 extract_flags_to_string() {

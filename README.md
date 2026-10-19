@@ -125,6 +125,24 @@ To run every Postman collection in the cloned repository, set `name` to `all`. T
 
 It recursively discovers `*.postman_collection.json` files, excluding `.git` and `node_modules`.
 
+To run every Postman collection inside a directory of the cloned repository, put the directory path in `name`. An entry is treated as a directory when it exists in the cloned repository as a folder (not by its file name), so the path does not need to end with `postman_collection.json`:
+
+```json
+{
+  "execution_list": [
+    { "type": "newman", "name": "project_name/smoke" }
+  ]
+}
+```
+
+Directory rules:
+- Discovery is recursive (`*.postman_collection.json`, excluding `.git` and `node_modules`), and results are paths relative to the cloned repository.
+- Directories and files can be mixed in one `name` (comma-separated). Duplicates are removed, order is preserved.
+- Paths must be relative and stay inside the cloned repository: absolute paths, `..` segments and symlinks pointing outside are rejected.
+- A directory without any collections fails the job with an error.
+- `all` is still standalone-only and always discovers from the repository root.
+- Folder names containing commas are not supported.
+
 With:
 
 ```bash
@@ -171,8 +189,8 @@ The legacy format also supports `"collections": ["all"]` with the same standalon
 
 #### TEST_PARAMS description
 
-- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection paths, or the standalone `all` keyword to discover every Postman collection
-- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`), or `["all"]` to discover every Postman collection
+- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection file paths and/or directory paths (every collection inside a directory is run), or the standalone `all` keyword to discover every Postman collection
+- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`) and/or directory paths, or `["all"]` to discover every Postman collection
 - __flags__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_FLAGS` via `EXTRA_VARS`
 - __env_vars__ / __globals__ - Top-level for both formats; converted to `--env-var` / `--globals`
 - __working-dir__ - Top-level for both formats; passed through as Newman `--working-dir`. Used so file uploads in collections resolve relative to a known path. For GitLab/ATP3 (`execution_list` with hardcoded `TEST_PARAMS`), set via `EXTRA_VARS` → `NEWMAN_FLAGS=--working-dir <path>` instead. If both are set, `NEWMAN_FLAGS` wins
