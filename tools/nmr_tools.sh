@@ -80,14 +80,19 @@ is_secret_var() {
 # ============================================
 check_mandatory_env_vars() {
     ## Check mandatory environment variables
-    check_env_var "ENVIRONMENT_NAME" ""
+    # ENVIRONMENT_NAME defaults to "local" in init_environment (scripts/init.sh)
     check_env_var "TEST_PARAMS" ""
 
-    ## Check mandatory environment variables for S3 reporting
-    check_env_var "ATP_STORAGE_SERVER_URL" ""
-    check_env_var "ATP_STORAGE_BUCKET" ""
-    check_env_var "ATP_STORAGE_PROVIDER" ""
-    check_env_var "ATP_STORAGE_SERVER_UI_URL" ""
+    ## S3 reporting variables are required only when storage is configured.
+    ## Same condition as storage_enabled() in scripts/init.sh (not called here because
+    ## start_tests.sh runs as a separate process and does not inherit that function).
+    if [[ -n "${ATP_STORAGE_USERNAME:-}" && -n "${ATP_STORAGE_PASSWORD:-}" \
+        && -n "${ATP_STORAGE_SERVER_URL:-}" && -n "${ATP_STORAGE_BUCKET:-}" ]]; then
+        check_env_var "ATP_STORAGE_SERVER_URL" ""
+        check_env_var "ATP_STORAGE_BUCKET" ""
+        check_env_var "ATP_STORAGE_PROVIDER" ""
+        check_env_var "ATP_STORAGE_SERVER_UI_URL" ""
+    fi
     check_env_var "CURRENT_DATE" "date +%F"
     check_env_var "CURRENT_TIME" "date +%H-%M-%S"
 }
