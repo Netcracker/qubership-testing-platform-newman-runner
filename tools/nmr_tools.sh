@@ -37,10 +37,7 @@ check_env_var() {
             exit 1
         else
             # Calculating value
-            computed_value=$(eval "$compute_expr" 2>/dev/null)
-
-            # Verifying successful completion
-            if [ $? -ne 0 ]; then
+            if ! computed_value=$(eval "$compute_expr" 2>/dev/null); then
                 echo "❗Error calculating the value for $var_name" >&2
                 exit 1
             fi
@@ -80,14 +77,19 @@ is_secret_var() {
 # ============================================
 check_mandatory_env_vars() {
     ## Check mandatory environment variables
-    check_env_var "ENVIRONMENT_NAME" ""
+    # ENVIRONMENT_NAME defaults to "local" in init_environment (scripts/init.sh)
     check_env_var "TEST_PARAMS" ""
 
-    ## Check mandatory environment variables for S3 reporting
-    check_env_var "ATP_STORAGE_SERVER_URL" ""
-    check_env_var "ATP_STORAGE_BUCKET" ""
-    check_env_var "ATP_STORAGE_PROVIDER" ""
-    check_env_var "ATP_STORAGE_SERVER_UI_URL" ""
+    ## S3 reporting variables are required only when storage is configured.
+    ## Same condition as storage_enabled() in scripts/init.sh (not called here because
+    ## start_tests.sh runs as a separate process and does not inherit that function).
+    if [[ -n "${ATP_STORAGE_USERNAME:-}" && -n "${ATP_STORAGE_PASSWORD:-}" \
+        && -n "${ATP_STORAGE_SERVER_URL:-}" && -n "${ATP_STORAGE_BUCKET:-}" ]]; then
+        check_env_var "ATP_STORAGE_SERVER_URL" ""
+        check_env_var "ATP_STORAGE_BUCKET" ""
+        check_env_var "ATP_STORAGE_PROVIDER" ""
+        check_env_var "ATP_STORAGE_SERVER_UI_URL" ""
+    fi
     check_env_var "CURRENT_DATE" "date +%F"
     check_env_var "CURRENT_TIME" "date +%H-%M-%S"
 }
@@ -168,13 +170,10 @@ extract_flags_to_string() {
 
     # Convert the flags array to a string, joining the elements with a space
     local flags_string
+    # shellcheck disable=SC2034
     flags_string=$(echo "$json_input" | jq -r '(.flags // []) | map(sub("\\s*->\\s*"; "=")) | join(" ")')
 
-    # Assign a value to a variable with a dynamic name
-    eval "$target_var_name=\$flags_string"
-
-    # Export variable
-    export "$target_var_name"
+    eval "export ${target_var_name}=\${flags_string}"
 }
 
 
