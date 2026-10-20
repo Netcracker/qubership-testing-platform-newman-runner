@@ -37,10 +37,7 @@ check_env_var() {
             exit 1
         else
             # Calculating value
-            computed_value=$(eval "$compute_expr" 2>/dev/null)
-
-            # Verifying successful completion
-            if [ $? -ne 0 ]; then
+            if ! computed_value=$(eval "$compute_expr" 2>/dev/null); then
                 echo "❗Error calculating the value for $var_name" >&2
                 exit 1
             fi
@@ -173,13 +170,10 @@ extract_flags_to_string() {
 
     # Convert the flags array to a string, joining the elements with a space
     local flags_string
+    # shellcheck disable=SC2034
     flags_string=$(echo "$json_input" | jq -r '(.flags // []) | map(sub("\\s*->\\s*"; "=")) | join(" ")')
 
-    # Assign a value to a variable with a dynamic name
-    eval "$target_var_name=\$flags_string"
-
-    # Export variable
-    export "$target_var_name"
+    eval "export ${target_var_name}=\${flags_string}"
 }
 
 
