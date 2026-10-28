@@ -22,6 +22,24 @@ source /tools/merge-environment-configuration.sh
 # shellcheck disable=SC1091
 source /scripts/tools/b3_trace.sh
 
+# Collection progress: executed/total/summary count collections, test results stay in passed/failed/skipped.
+_nmr_prepare_collection_progress() {
+  local count="$1"
+  local dir="${TMP_DIR:-}/atp3-collections-done"
+  [[ -n "${TMP_DIR:-}" && "$count" -gt 0 ]] || return 0
+  printf '%s\n' "$count" > "${TMP_DIR}/atp3-collections-total"
+  mkdir -p "$dir" 2>/dev/null || return 0
+}
+
+_nmr_mark_collection_done() {
+  local name="$1"
+  local dir="${TMP_DIR:-}/atp3-collections-done"
+  [[ -n "${TMP_DIR:-}" && -n "$name" ]] || return 0
+  name="${name//\//_}"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  : > "${dir}/${name}"
+}
+
 # Local run flag
 LOCAL_RUN="${LOCAL_RUN:-false}"
 
@@ -91,6 +109,7 @@ if ! local_run_enabled; then
 
   NEWMAN_FAILED=0
   idx=0
+  _nmr_prepare_collection_progress "${#NEWMAN_COLLECTIONS_ARRAY[@]}"
   for collection in "${NEWMAN_COLLECTIONS_ARRAY[@]}"; do
           idx=$((idx + 1))
 
@@ -126,6 +145,7 @@ if ! local_run_enabled; then
           echo "❌ Newman failed for collection: $collection" >&2
           NEWMAN_FAILED=1
       fi
+      _nmr_mark_collection_done "$collection"
   done
 fi
 
@@ -148,6 +168,7 @@ if local_run_enabled; then
     else
 
       pushd "${LOCAL_COLLECTIONS_DIR}" >/dev/null
+      _nmr_prepare_collection_progress "${#LOCAL_COLLECTIONS_ARRAY[@]}"
       for collection in "${LOCAL_COLLECTIONS_ARRAY[@]}"; do
           nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${NEWMAN_REPORTING}"
           echo "Running command: '${nr_command}'"
@@ -161,6 +182,7 @@ if local_run_enabled; then
               echo "❌ Newman failed for collection (LOCAL): $collection" >&2
               NEWMAN_FAILED=1
           fi
+          _nmr_mark_collection_done "$collection"
       done
       popd >/dev/null
       echo "✅ Test execution completed"
