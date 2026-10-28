@@ -62,7 +62,7 @@ flowchart TD
 
 #### Input for Project Argo Pipeline
 
-- __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
+- __ENVIRONMENT_NAME__ - Optional. Environment name (S3/report path label). Defaults to `local`
 - __PROJECT_ID__ - Project identifier from the orchestrator, used as-is in the `X-B3-TraceId` header. See [OpenTelemetry (B3) trace headers](#opentelemetry-b3-trace-headers). When it or `RUN_ID` is not set, the headers are skipped with a warning in the job log
 - __RUN_ID__ - Test run identifier from the orchestrator, used as-is in the `X-B3-TraceId` header. See [OpenTelemetry (B3) trace headers](#opentelemetry-b3-trace-headers)
 - __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format.
@@ -85,12 +85,14 @@ flowchart TD
 
 #### Input for ATP Newman Runner
 
-- __ATP_STORAGE_SERVER_URL__ - MinIO API host
-- __ATP_STORAGE_USERNAME__ - S3 access key
-- __ATP_STORAGE_PASSWORD__ - S3 secret key
-- __ATP_STORAGE_BUCKET__ - S3 bucket name
-- __ATP_STORAGE_PROVIDER__ - Storage type (`aws` or `minio` or `s3`)
-- __ATP_STORAGE_SERVER_UI_URL__ - S3 UI URL
+Storage variables are optional for local runs. Upload to S3 is enabled only when `ATP_STORAGE_USERNAME`, `ATP_STORAGE_PASSWORD`, `ATP_STORAGE_SERVER_URL` and `ATP_STORAGE_BUCKET` are all set. If any of them is missing, the upload is skipped and results stay in `/tmp/clone/allure-results` and `/tmp/clone/attachments`.
+
+- __ATP_STORAGE_SERVER_URL__ - Optional. MinIO API host (required only for upload)
+- __ATP_STORAGE_USERNAME__ - Optional. S3 access key (required only for upload)
+- __ATP_STORAGE_PASSWORD__ - Optional. S3 secret key (required only for upload)
+- __ATP_STORAGE_BUCKET__ - Optional. S3 bucket name (required only for upload)
+- __ATP_STORAGE_PROVIDER__ - Optional. Storage type (`aws` or `minio` or `s3`), default `minio`
+- __ATP_STORAGE_SERVER_UI_URL__ - Optional. S3 UI URL, used to build result links
 - __CURRENT_DATE__ - Optional. Format `YYYY-MM-DD`, example: `2025-07-30`
 - __CURRENT_TIME__ - Optional. Format `HH:MM:SS`, example `23:45:12`
 
@@ -124,24 +126,6 @@ To run every Postman collection in the cloned repository, set `name` to `all`. T
 ```
 
 It recursively discovers `*.postman_collection.json` files, excluding `.git` and `node_modules`.
-
-To run every Postman collection inside a directory of the cloned repository, put the directory path in `name`. An entry is treated as a directory when it exists in the cloned repository as a folder (not by its file name), so the path does not need to end with `postman_collection.json`:
-
-```json
-{
-  "execution_list": [
-    { "type": "newman", "name": "project_name/smoke" }
-  ]
-}
-```
-
-Directory rules:
-- Discovery is recursive (`*.postman_collection.json`, excluding `.git` and `node_modules`), and results are paths relative to the cloned repository.
-- Directories and files can be mixed in one `name` (comma-separated). Duplicates are removed, order is preserved.
-- Paths must be relative and stay inside the cloned repository: absolute paths, `..` segments and symlinks pointing outside are rejected.
-- A directory without any collections fails the job with an error.
-- `all` is still standalone-only and always discovers from the repository root.
-- Folder names containing commas are not supported.
 
 With:
 
@@ -189,8 +173,8 @@ The legacy format also supports `"collections": ["all"]` with the same standalon
 
 #### TEST_PARAMS description
 
-- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection file paths and/or directory paths (every collection inside a directory is run), or the standalone `all` keyword to discover every Postman collection
-- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`) and/or directory paths, or `["all"]` to discover every Postman collection
+- __execution_list__ - Preferred. Array of `{ "type": "newman", "name": "path1,path2" }`. Only `type: newman` is supported. `name` is a comma-separated list of collection paths, or the standalone `all` keyword to discover every Postman collection
+- __collections__ - Legacy. List of relative paths to collection files (`newman run {path}`), or `["all"]` to discover every Postman collection
 - __flags__ - Legacy `collections` format only. For `execution_list`, use `NEWMAN_FLAGS` via `EXTRA_VARS`
 - __env_vars__ / __globals__ - Top-level for both formats; converted to `--env-var` / `--globals`
 - __working-dir__ - Top-level for both formats; passed through as Newman `--working-dir`. Used so file uploads in collections resolve relative to a known path. For GitLab/ATP3 (`execution_list` with hardcoded `TEST_PARAMS`), set via `EXTRA_VARS` → `NEWMAN_FLAGS=--working-dir <path>` instead. If both are set, `NEWMAN_FLAGS` wins
