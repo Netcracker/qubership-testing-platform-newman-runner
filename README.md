@@ -62,7 +62,7 @@ flowchart TD
 
 #### Input for Project Argo Pipeline
 
-- __ENVIRONMENT_NAME__ - Environment name (S3/report path label)
+- __ENVIRONMENT_NAME__ - Optional. Environment name (S3/report path label). Defaults to `local`
 - __PROJECT_ID__ - Project identifier from the orchestrator, used as-is in the `X-B3-TraceId` header. See [OpenTelemetry (B3) trace headers](#opentelemetry-b3-trace-headers). When it or `RUN_ID` is not set, the headers are skipped with a warning in the job log
 - __RUN_ID__ - Test run identifier from the orchestrator, used as-is in the `X-B3-TraceId` header. See [OpenTelemetry (B3) trace headers](#opentelemetry-b3-trace-headers)
 - __NEWMAN_ENVIRONMENT_FILE__ - Optional. Postman environment file path for `execution_list` format.
@@ -85,12 +85,14 @@ flowchart TD
 
 #### Input for ATP Newman Runner
 
-- __ATP_STORAGE_SERVER_URL__ - MinIO API host
-- __ATP_STORAGE_USERNAME__ - S3 access key
-- __ATP_STORAGE_PASSWORD__ - S3 secret key
-- __ATP_STORAGE_BUCKET__ - S3 bucket name
-- __ATP_STORAGE_PROVIDER__ - Storage type (`aws` or `minio` or `s3`)
-- __ATP_STORAGE_SERVER_UI_URL__ - S3 UI URL
+Storage variables are optional for local runs. Upload to S3 is enabled only when `ATP_STORAGE_USERNAME`, `ATP_STORAGE_PASSWORD`, `ATP_STORAGE_SERVER_URL` and `ATP_STORAGE_BUCKET` are all set. If any of them is missing, the upload is skipped and results stay in `/tmp/clone/allure-results` and `/tmp/clone/attachments`.
+
+- __ATP_STORAGE_SERVER_URL__ - Optional. MinIO API host (required only for upload)
+- __ATP_STORAGE_USERNAME__ - Optional. S3 access key (required only for upload)
+- __ATP_STORAGE_PASSWORD__ - Optional. S3 secret key (required only for upload)
+- __ATP_STORAGE_BUCKET__ - Optional. S3 bucket name (required only for upload)
+- __ATP_STORAGE_PROVIDER__ - Optional. Storage type (`aws` or `minio` or `s3`), default `minio`
+- __ATP_STORAGE_SERVER_UI_URL__ - Optional. S3 UI URL, used to build result links
 - __CURRENT_DATE__ - Optional. Format `YYYY-MM-DD`, example: `2025-07-30`
 - __CURRENT_TIME__ - Optional. Format `HH:MM:SS`, example `23:45:12`
 
