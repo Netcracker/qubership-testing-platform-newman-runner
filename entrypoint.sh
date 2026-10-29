@@ -36,6 +36,8 @@ fi
 # shellcheck disable=SC1091
 source /scripts/error-handler.sh
 # shellcheck disable=SC1091
+source /scripts/disk-usage.sh
+# shellcheck disable=SC1091
 source /scripts/init.sh
 # shellcheck disable=SC1091
 source /scripts/git-clone.sh
@@ -66,16 +68,6 @@ NATIVE_REPORT_DIR="playwright-report"
 # Register it here after all scripts are sourced so every function it calls is available.
 trap 'finalize_once' EXIT
 
-# Log ephemeral disk usage (tune EPHEMERAL_STORAGE_* from this). Runs as the first step
-# of the trap-independent path; a trailing `du` on each exit is not reachable because
-# finalize_once always exits 0, so it is printed right after the test run instead.
-log_disk_usage() {
-    echo "Disk usage:"
-    du -h -d1 "${TMP_DIR:-/tmp}" 2>/dev/null | sort -h | tail -n 10
-    du -sh /app/.[!.]* 2>/dev/null
-}
-
-log_disk_usage
 init_environment              || fail "Environment initialization failed"
 parse_extra_vars              || fail "EXTRA_VARS parsing failed"
 clone_repository              || fail "Repository clone failed"
