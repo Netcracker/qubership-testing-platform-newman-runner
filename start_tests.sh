@@ -91,6 +91,7 @@ if ! local_run_enabled; then
 
   NEWMAN_FAILED=0
   idx=0
+  current_env_file="${COMMON_ENV_FILE}"
   for collection in "${NEWMAN_COLLECTIONS_ARRAY[@]}"; do
           idx=$((idx + 1))
 
@@ -105,11 +106,9 @@ if ! local_run_enabled; then
           fi
 
           if [[ "$COMMON_ENV" == "true" ]]; then
-              if (( idx == 1 )); then
-                  env_flags="--environment ${COMMON_ENV_FILE} --export-environment env_2.json"
-              else
-                  env_flags="--environment env_${idx}.json --export-environment env_$((idx+1)).json"
-              fi
+              next_env_file="env_$((idx+1)).json"
+              rm -f "${next_env_file}"
+              env_flags="--environment ${current_env_file} --export-environment ${next_env_file}"
               nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${b3_flags} ${env_flags} ${NEWMAN_REPORTING}"
           else
               nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${b3_flags} --environment ${COMMON_ENV_FILE} ${NEWMAN_REPORTING}"
@@ -118,13 +117,22 @@ if ! local_run_enabled; then
 
       # Disable set -e for one command
       set +e
-      eval "${nr_command}" || NEWMAN_FAILED=1
+      eval "${nr_command}"
       exit_code=$?
       set -e
 
       if (( exit_code != 0 )); then
           echo "❌ Newman failed for collection: $collection" >&2
           NEWMAN_FAILED=1
+      fi
+
+      # Newman does not export the environment when the run crashes; keep chaining from the last good file
+      if [[ "$COMMON_ENV" == "true" ]]; then
+          if [[ -s "${next_env_file}" ]]; then
+              current_env_file="${next_env_file}"
+          else
+              echo "⚠️ Environment was not exported to ${next_env_file}; next collection will use ${current_env_file}" >&2
+          fi
       fi
   done
 fi
