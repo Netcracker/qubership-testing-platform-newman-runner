@@ -15,9 +15,11 @@ spec:
           requests:
             memory: '{{ .Values.MEMORY_REQUEST }}'
             cpu: '{{ .Values.CPU_REQUEST }}'
+            ephemeral-storage: '{{ .Values.EPHEMERAL_STORAGE_REQUEST | default "512Mi" }}'
           limits:
             memory: '{{ .Values.MEMORY_LIMIT }}'
             cpu: '{{ .Values.CPU_LIMIT }}'
+            ephemeral-storage: '{{ .Values.EPHEMERAL_STORAGE_LIMIT | default "5Gi" }}'
         env:
           - name: ATP_TESTS_GIT_REPO_URL
             value: "{{ .Values.ATP_TESTS_GIT_REPO_URL }}"

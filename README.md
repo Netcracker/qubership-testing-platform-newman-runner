@@ -288,6 +288,26 @@ __Example content for `tools/local_test_params.json`:__
 {"collections":["project_name/Acquire_Token.postman_collection.json""],"env":"environment/dev_env.postman_environment.json","env_vars":{"cluster":".k8s-dev123.k8s.test.somedomain.com","namespace":"project-name-ns123"},"flags":["--insecure"]}
 ```
 
+## Hardware / Resource Requirements (HWE)
+
+Supported 2 profiles: `dev`, `prod`.
+
+| Parameter                 | Dev    | Prod   |
+|---------------------------|--------|--------|
+| MEMORY_REQUEST            | 100Mi  | 100Mi  |
+| MEMORY_LIMIT              | 1000Mi | 2000Mi |
+| CPU_REQUEST               | 100m   | 300m   |
+| CPU_LIMIT                 | 500m   | 1000m  |
+| EPHEMERAL_STORAGE_REQUEST | 512Mi  | 512Mi  |
+| EPHEMERAL_STORAGE_LIMIT   | 5Gi    | 5Gi    |
+
+`EPHEMERAL_STORAGE_*` bound the node-local disk used by the runner pod (writable layer, `/tmp`, git clone,
+`node_modules` copy, Playwright videos/traces/screenshots).
+Requests make the scheduler place the pod only on nodes with that free space.
+Exceeding the limit evicts only this pod (the test run fails), instead of the node entering `DiskPressure`. Image layers
+are not counted here. Tune the limit from the `Disk usage` line logged at the end of each run.
+
+
 ### Quick Start
 ```bash
 # from repository root

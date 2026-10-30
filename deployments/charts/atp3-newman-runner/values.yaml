@@ -23,3 +23,7 @@ ATP_ENVGENE_CONFIGURATION: {}
 ATP_STORAGE_REGION: ""
 ENABLE_JIRA_INTEGRATION: false
 ATP_RUNNER_JOB_EXIT_STRATEGY: "EXIT_ALWAYS"
+# Ephemeral (node-local) storage for the runner pod: writable layer, /tmp, git clone,
+# node_modules copy, Playwright artifacts. Exceeding the limit evicts this pod only.
+EPHEMERAL_STORAGE_REQUEST: "512Mi"
+EPHEMERAL_STORAGE_LIMIT: "5Gi"
