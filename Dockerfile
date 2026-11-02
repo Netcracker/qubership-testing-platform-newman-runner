@@ -34,9 +34,22 @@ RUN addgroup -g 1007 runner && \
 WORKDIR $HOME_EX
 
 COPY package.json package-lock.json .npmrc ./
+
+# Permissions must be set in the same layer as npm ci: a separate chown/chmod
+# layer would store a full second copy of node_modules.
+# chgrp 0 + g=u supports OpenShift restricted-v2 (arbitrary UID, always gid 0)
+# while Kubernetes can still run the container as USER 1007 via owner perms.
+# Group-writable /etc/passwd lets the entrypoint register the arbitrary UID.
 RUN npm set strict-ssl=false && \
     npm init -y && \
-    npm ci
+    npm ci && \
+    rm -rf "$HOME_EX/.npm" && \
+    chown -R runner:runner "$HOME_EX" && \
+    chgrp -R 0 /app /scripts && \
+    chmod -R g=u /app /scripts && \
+    chmod g+rx /app /scripts && \
+    chgrp 0 /etc/passwd && \
+    chmod g=u /etc/passwd
 
 ENV PATH="/app/node_modules/.bin:${PATH}"
 ENV NODE_PATH="/app/node_modules"
