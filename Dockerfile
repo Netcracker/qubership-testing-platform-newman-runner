@@ -33,7 +33,16 @@ RUN addgroup -g 1007 runner && \
 
 WORKDIR $HOME_EX
 
+ENV PATH="/app/node_modules/.bin:${PATH}"
+ENV NODE_PATH="/app/node_modules"
+
 COPY package.json package-lock.json .npmrc ./
+COPY --chown=runner:runner --chmod=755 scripts/ /scripts/
+COPY --chown=runner:runner --chmod=755 tools/ /tools/
+COPY --chown=runner:runner --chmod=755 scripts/runtimes/newman-setup.sh /scripts/runtime-setup.sh
+COPY --chown=runner:runner --chmod=755 start_tests.sh /start_tests.sh
+COPY --chown=runner:runner --chmod=755 maven-install.sh /maven-install.sh
+COPY --chown=runner:runner --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 # Permissions must be set in the same layer as npm ci: a separate chown/chmod
 # layer would store a full second copy of node_modules.
@@ -50,16 +59,6 @@ RUN npm set strict-ssl=false && \
     chmod g+rx /app /scripts && \
     chgrp 0 /etc/passwd && \
     chmod g=u /etc/passwd
-
-ENV PATH="/app/node_modules/.bin:${PATH}"
-ENV NODE_PATH="/app/node_modules"
-
-COPY --chown=runner:runner --chmod=755 scripts/ /scripts/
-COPY --chown=runner:runner --chmod=755 tools/ /tools/
-COPY --chown=runner:runner --chmod=755 scripts/runtimes/newman-setup.sh /scripts/runtime-setup.sh
-COPY --chown=runner:runner --chmod=755 start_tests.sh /start_tests.sh
-COPY --chown=runner:runner --chmod=755 maven-install.sh /maven-install.sh
-COPY --chown=runner:runner --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 USER 1007
 
