@@ -33,11 +33,12 @@ _nmr_prepare_collection_progress() {
 
 _nmr_mark_collection_done() {
   local name="$1"
+  local index="${2:-}"
   local dir="${TMP_DIR:-}/atp3-collections-done"
   [[ -n "${TMP_DIR:-}" && -n "$name" ]] || return 0
   name="${name//\//_}"
   mkdir -p "$dir" 2>/dev/null || return 0
-  : > "${dir}/${name}"
+  : > "${dir}/${index:+${index}-}${name}"
 }
 
 # Local run flag
@@ -145,7 +146,7 @@ if ! local_run_enabled; then
           echo "❌ Newman failed for collection: $collection" >&2
           NEWMAN_FAILED=1
       fi
-      _nmr_mark_collection_done "$collection"
+      _nmr_mark_collection_done "$collection" "$idx"
   done
 fi
 
@@ -169,7 +170,9 @@ if local_run_enabled; then
 
       pushd "${LOCAL_COLLECTIONS_DIR}" >/dev/null
       _nmr_prepare_collection_progress "${#LOCAL_COLLECTIONS_ARRAY[@]}"
+      local_idx=0
       for collection in "${LOCAL_COLLECTIONS_ARRAY[@]}"; do
+          local_idx=$((local_idx + 1))
           nr_command="newman run '${collection}' ${NEWMAN_FLAGS_CLI} ${NEWMAN_REPORTING}"
           echo "Running command: '${nr_command}'"
 
@@ -182,7 +185,7 @@ if local_run_enabled; then
               echo "❌ Newman failed for collection (LOCAL): $collection" >&2
               NEWMAN_FAILED=1
           fi
-          _nmr_mark_collection_done "$collection"
+          _nmr_mark_collection_done "$collection" "$local_idx"
       done
       popd >/dev/null
       echo "✅ Test execution completed"
