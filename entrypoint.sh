@@ -67,6 +67,21 @@ NATIVE_REPORT_DIR="playwright-report"
 trap 'finalize_once' EXIT
 
 init_environment              || fail "Environment initialization failed"
+
+# OpenShift restricted-v2: arbitrary UID (gid 0) may lack a writable HOME /
+# pre-baked /tmp/clone. Rematerialize before clone_repository sets PROJECT_DIR.
+[ -n "${HOME:-}" ] && [ -w "$HOME" ] || export HOME="${HOME_EX:-/app}"
+
+if [ -d "${TMP_DIR:-}" ] && [ "$(ls -A "$TMP_DIR" 2>/dev/null)" ] \
+   && ! touch "$TMP_DIR/.nmr_w" 2>/dev/null; then
+  rm -rf /tmp/nmr-workdir && mkdir -p /tmp/nmr-workdir
+  cp -a "$TMP_DIR"/. /tmp/nmr-workdir/ || fail "Cannot rematerialize tests to /tmp/nmr-workdir"
+  export TMP_DIR=/tmp/nmr-workdir
+  echo "ℹ️ TMP_DIR rematerialized to $TMP_DIR (uid=$(id -u) cannot write pre-baked clone)"
+else
+  rm -f "${TMP_DIR:-}/.nmr_w"
+fi
+
 parse_extra_vars              || fail "EXTRA_VARS parsing failed"
 clone_repository              || fail "Repository clone failed"
 maven_install           || fail "Maven install failed"

@@ -49,6 +49,10 @@ COPY --chown=runner:runner --chmod=755 entrypoint.sh /app/entrypoint.sh
 # chgrp 0 + g=u supports OpenShift restricted-v2 (arbitrary UID, always gid 0)
 # while Kubernetes can still run the container as USER 1007 via owner perms.
 # Group-writable /etc/passwd lets the entrypoint register the arbitrary UID.
+#
+# Product images that COPY tests into /tmp/clone MUST apply the same pattern to
+# that path (chgrp -R 0 /tmp/clone && chmod -R g=u /tmp/clone). Otherwise the
+# entrypoint rematerializes /tmp/clone into /tmp/nmr-workdir at runtime.
 RUN npm set strict-ssl=false && \
     npm init -y && \
     npm ci && \
