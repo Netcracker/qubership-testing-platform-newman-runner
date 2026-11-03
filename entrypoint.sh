@@ -75,7 +75,8 @@ init_environment              || fail "Environment initialization failed"
 if [ -d "${TMP_DIR:-}" ] && [ "$(ls -A "$TMP_DIR" 2>/dev/null)" ] \
    && ! touch "$TMP_DIR/.nmr_w" 2>/dev/null; then
   rm -rf /tmp/nmr-workdir && mkdir -p /tmp/nmr-workdir
-  cp -a "$TMP_DIR"/. /tmp/nmr-workdir/ || fail "Cannot rematerialize tests to /tmp/nmr-workdir"
+  # -r not -a: OpenShift arbitrary UID cannot preserve ownership (chown EPERM)
+  cp -r "$TMP_DIR"/. /tmp/nmr-workdir/ || fail "Cannot rematerialize tests to /tmp/nmr-workdir"
   export TMP_DIR=/tmp/nmr-workdir
   echo "ℹ️ TMP_DIR rematerialized to $TMP_DIR (uid=$(id -u) cannot write pre-baked clone)"
 else
