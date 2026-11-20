@@ -15,7 +15,7 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.22/community/" >/etc/apk/repo
       inotify-tools \
       perl \
       nano \
-      openjdk17-jdk \
+      openjdk21-jdk \
       maven && \
     rm -rf /var/cache/apk/*
 
